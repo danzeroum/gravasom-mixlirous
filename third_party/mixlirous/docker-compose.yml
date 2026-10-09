@@ -1,0 +1,87 @@
+# Modo VPS (docs/11-INFRA-DEPLOY.md §3): Postgres + MinIO + API. Para juntar
+# observabilidade: `docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d`
+# Para expor publicamente pelo nginx compartilhado do VPS (docs/18-DEPLOY-PUBLICO-NGINX.md):
+# `docker compose -f docker-compose.yml -f docker-compose.ingress.yml up -d`
+#
+# Nota: a Sprint 0 só entrega o adapter de repositório em memória
+# (audio_api::adapters::InMemoryRepo) — o Postgres já sobe aqui e o
+# DATABASE_URL já é injetado, mas o binário ainda não fala com ele; o
+# adapter real de Postgres é trabalho de Sprint 1+ (ADR-0003).
+#
+# Portas: os três serviços publicam apenas em 127.0.0.1. Este arquivo é o
+# modo VPS — uma máquina com IP público —, e as credenciais aqui são as de
+# desenvolvimento (remix:remix, minioadmin:minioadmin). Publicar em
+# 0.0.0.0 deixaria banco e storage alcançáveis da internet com senha
+# conhecida. Os serviços conversam entre si pela rede `mixlirous`, por nome
+# de container, sem depender de porta publicada; a publicação em loopback
+# existe só para diagnóstico local (`curl localhost:8080/healthz`, `psql -h
+# 127.0.0.1`). Expor qualquer uma delas para fora é decisão explícita de
+# quem opera — o caminho suportado é um proxy reverso à frente
+# (docs/18-DEPLOY-PUBLICO-NGINX.md), não trocar o binding aqui.
+networks:
+  mixlirous:
+    name: mixlirous
+
+volumes:
+  postgres_data:
+  minio_data:
+
+services:
+  # Postgres e MinIO só falam com remix_api pela rede interna do compose
+  # (rede interna `mixlirous`) — não têm por que aceitar conexão de fora do
+  # host. Publicar em 0.0.0.0 (a forma antiga, sem endereço explícito) deixa
+  # as duas portas alcançáveis pela internet inteira se o firewall da VPS
+  # não bloquear, com credenciais padrão de exemplo por trás. Achado real,
+  # numa VPS de verdade, não hipotético — ver issue aberta sobre isto.
+  postgres:
+    image: postgres:16-alpine
+    networks: [mixlirous]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: remix
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env antes de subir em modo VPS}
+      POSTGRES_DB: remix_ai
+    ports:
+      - "127.0.0.1:5432:5432"
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    networks: [mixlirous]
+    volumes:
+      - minio_data:/data
+    ports:
+      - "127.0.0.1:9000:9000" # API
+      - "127.0.0.1:9001:9001" # Console
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?defina MINIO_ROOT_USER no .env antes de subir em modo VPS}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?defina MINIO_ROOT_PASSWORD no .env antes de subir em modo VPS}
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+
+  remix_api:
+    build: .
+    image: mixlirous-api:latest
+    networks: [mixlirous]
+    volumes:
+      - ./data:/app/data
+    environment:
+      - RUST_LOG=info
+      - CONFIG_ENV=default
+      # Obrigatório — CONFIG_ENV=default não é "local", o binário recusa
+      # subir sem isto (ver middleware/auth.rs). Defina JWT_SECRET no .env
+      # antes de rodar (ver .env.example); a sintaxe ${VAR:?msg} falha o
+      # `docker compose up` com uma mensagem clara em vez de deixar o
+      # container crash-loopar.
+      - JWT_SECRET=${JWT_SECRET:?defina JWT_SECRET no .env antes de subir em modo VPS}
+      - DATABASE_URL=postgres://remix:${POSTGRES_PASSWORD}@postgres:5432/remix_ai
+      - REMIX__STORAGE__ENDPOINT=minio:9000
+      - REMIX__STORAGE__ACCESS_KEY=${MINIO_ROOT_USER}
+      - REMIX__STORAGE__SECRET_KEY=${MINIO_ROOT_PASSWORD}
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - postgres
+      - minio
+    restart: unless-stopped
