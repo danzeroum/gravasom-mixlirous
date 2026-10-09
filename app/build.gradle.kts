@@ -9,7 +9,9 @@ plugins {
 android {
     namespace = "com.gravasom"
     defaultConfig {
-        applicationId = "com.gravasom"
+        // Identidade própria do Gravasom Mixlirous: applicationId novo instala ao lado do Gravasom original.
+        // O namespace permanece com.gravasom para reutilizar todo o código herdado sem reescrever imports.
+        applicationId = "com.gravasom.mixlirous"
         // Sem CI: a versao vem de app/version.properties (versionCode sobe a cada entrega). O workflow manual pode sobrepor por ambiente.
         val version = Properties().apply {
             load(providers.fileContents(layout.projectDirectory.file("version.properties")).asText.get().reader())

@@ -1,21 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Gerado por docs/design/ferramentas/svg_para_vd.py a partir de docs/design/icone/ic_launcher_foreground.svg. Gravasom — primeiro plano do ícone adaptativo. -->
+<!-- Gravasom Mixlirous — primeiro plano do ícone adaptativo. Derivado de docs/design/icone-mixlirous/ic_launcher_foreground.svg
+     (anel #FAD7FF com barras #EFB0FF sobre #662F79; contraste 7,26:1 e 5,50:1 — mín. 3:1 da identidade). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="#FFD5F6FF"
+        android:fillColor="#FFFAD7FF"
         android:fillType="evenOdd"
         android:pathData="M54 24a30 30 0 1 0 0 60a30 30 0 1 0 0 -60zM54 30a24 24 0 1 1 0 48a24 24 0 1 1 0 -48z" />
     <path
-        android:fillColor="#FF76D4E8"
+        android:fillColor="#FFEFB0FF"
         android:pathData="M41.5 50a3 3 0 0 1 6 0v8a3 3 0 0 1 -6 0z" />
     <path
-        android:fillColor="#FF76D4E8"
+        android:fillColor="#FFEFB0FF"
         android:pathData="M51 43a3 3 0 0 1 6 0v22a3 3 0 0 1 -6 0z" />
     <path
-        android:fillColor="#FF76D4E8"
+        android:fillColor="#FFEFB0FF"
         android:pathData="M60.5 48a3 3 0 0 1 6 0v12a3 3 0 0 1 -6 0z" />
 </vector>

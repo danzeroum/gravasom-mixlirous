@@ -86,13 +86,13 @@ object GravasomTheme {
 }
 
 /**
- * Tema do Gravasom: Material 3 com as cores, a tipografia (Atkinson Hyperlegible Next) e as formas de docs/design/tokens.json.
- * [paleta] padrão é a Gravasom; o seletor em Ajustes fica para a Parte B.
+ * Tema do Gravasom Mixlirous: Material 3 com as cores, a tipografia (Atkinson Hyperlegible Next) e as formas de
+ * docs/design/tokens.json. [paleta] padrão é a Mixlirous (identidade do app); o seletor em Ajustes fica para a Parte B.
  */
 @Composable
 fun GravasomTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    paleta: Paleta = Paleta.GRAVASOM,
+    paleta: Paleta = Paleta.PADRAO,
     content: @Composable () -> Unit,
 ) = GravasomThemeImpl(darkTheme, paleta, Build.VERSION.SDK_INT, content)
 

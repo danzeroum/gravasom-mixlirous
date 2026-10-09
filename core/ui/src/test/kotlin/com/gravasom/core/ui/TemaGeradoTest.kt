@@ -7,6 +7,8 @@ import androidx.test.core.app.ApplicationProvider
 import com.gravasom.core.ui.theme.GravasomDarkColors
 import com.gravasom.core.ui.theme.GravasomExtraLight
 import com.gravasom.core.ui.theme.GravasomLightColors
+import com.gravasom.core.ui.theme.MixlirousDarkColors
+import com.gravasom.core.ui.theme.MixlirousLightColors
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -70,11 +72,11 @@ class TemaGeradoTest {
     }
 
     @Test
-    fun `android 11 com cores do sistema cai na paleta gravasom sem erro`() {
+    fun `android 11 com cores do sistema cai na paleta padrao sem erro`() {
         // Sem Context: no Android 11 o Context nem é consultado, então nada pode lançar.
-        assertEquals(GravasomLightColors, esquemaDeCores(Paleta.SISTEMA, escuro = false, context = null, sdkInt = 30))
-        assertEquals(GravasomDarkColors, esquemaDeCores(Paleta.SISTEMA, escuro = true, context = null, sdkInt = 30))
-        assertEquals(Paleta.GRAVASOM, Paleta.SISTEMA.efetiva(30))
+        assertEquals(MixlirousLightColors, esquemaDeCores(Paleta.SISTEMA, escuro = false, context = null, sdkInt = 30))
+        assertEquals(MixlirousDarkColors, esquemaDeCores(Paleta.SISTEMA, escuro = true, context = null, sdkInt = 30))
+        assertEquals(Paleta.PADRAO, Paleta.SISTEMA.efetiva(30))
         assertFalse(Paleta.SISTEMA in Paleta.disponiveis(30))
         assertTrue(Paleta.SISTEMA in Paleta.disponiveis(31))
     }
@@ -103,10 +105,11 @@ class TemaGeradoTest {
     }
 
     @Test
-    fun `paleta padrao e gravasom e ids desconhecidos voltam a ela`() {
-        assertEquals(Paleta.GRAVASOM, Paleta.fromId(null))
-        assertEquals(Paleta.GRAVASOM, Paleta.fromId("outra"))
-        assertEquals(Paleta.MIXLIROUS, Paleta.fromId("mixlirous"))
+    fun `paleta padrao e mixlirous e ids desconhecidos voltam a ela`() {
+        assertEquals(Paleta.MIXLIROUS, Paleta.PADRAO)
+        assertEquals(Paleta.MIXLIROUS, Paleta.fromId(null))
+        assertEquals(Paleta.MIXLIROUS, Paleta.fromId("outra"))
+        assertEquals(Paleta.GRAVASOM, Paleta.fromId("gravasom"))
     }
 
     @Test
