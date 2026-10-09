@@ -1,0 +1,18 @@
+# Perfil local (I9 de docs/14-AUDITORIA-KIT.md): sem Postgres, sem MinIO,
+# sem observabilidade — só o necessário para `cargo run --bin audio_api` com
+# CONFIG_ENV=local, como descrito no README.
+database:
+  type: "sqlite"
+  url: "sqlite:data/remix_ai.db?mode=rwc"
+
+storage:
+  type: "local"
+  bucket: "data/audio-pipeline"
+
+# E2E / single-user: o browser de teste excede 60 req/min numa única
+# sessão (bootstrap + SSE + polling de Biblioteca/Atividade). O limiter
+# continua ATIVO — só o orçamento muda, via config auditável (PR #59:
+# `features.rate_limit_per_minute`, default 60 nos perfis default/production).
+features:
+  rate_limit: true
+  rate_limit_per_minute: 6000

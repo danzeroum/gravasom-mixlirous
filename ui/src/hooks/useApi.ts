@@ -1,0 +1,312 @@
+import { useCallback, useState } from 'react'
+import { ApiRequestError } from '../types/api'
+import { authHeaders } from '../lib/authHeaders'
+import type {
+  ApiError,
+  ApproveRequestBody,
+  ConsentInfo,
+  JobMode,
+  JobRequest,
+  JobResponse,
+  PeaksResponse,
+  PipelineConfig,
+  PresignRequest,
+  PresignResponse,
+  PrivacyPolicy,
+  ProposalResponse,
+  SystemInfo,
+  TrackRequest,
+  TrackResponse,
+  ToolInfo,
+} from '../types/api'
+
+const BASE_URL = '/api/v1'
+
+/**
+ * Tenta parsear o body como RFC 7807 (ApiError). Se não for JSON, ou se
+ * faltar campos obrigatórios, devolve um ApiError mínimo com o status code.
+ * Item C1 do mapa: o `fetchJson` é o ponto único onde o erro estruturado
+ * é materializado — chamadas específicas só precisam passar o campo esperado.
+ */
+async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const resp = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      // Token da sessão local (docs/03 §1) quando existir — no modo SaaS
+      // o login futuro grava o mesmo storage key e nada muda aqui.
+      ...authHeaders(),
+      ...options?.headers,
+    },
+  })
+
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => '')
+    let apiError: ApiError | undefined
+    try {
+      const parsed = JSON.parse(body) as ApiError
+      if (parsed && typeof parsed.status === 'number') {
+        apiError = parsed
+      }
+    } catch {
+      // Body não é JSON — provavelmente é uma string de erro do axum
+      // (quando o handler retorna `(StatusCode, String)` em vez de
+      // `application/problem+json`). Construímos um ApiError sintético.
+    }
+    const message = apiError?.detail ?? apiError?.title ?? body ?? `HTTP ${resp.status}`
+    throw new ApiRequestError(resp.status, message, apiError)
+  }
+
+  return resp.json() as Promise<T>
+}
+
+export function useApi() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<ApiRequestError | null>(null)
+
+  const withLoading = useCallback(async <T>(fn: () => Promise<T>): Promise<T> => {
+    setLoading(true)
+    setError(null)
+    try {
+      return await fn()
+    } catch (e) {
+      const err =
+        e instanceof ApiRequestError
+          ? e
+          : new ApiRequestError(0, e instanceof Error ? e.message : 'Unknown error')
+      setError(err)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const createJob = useCallback(
+    (
+      trackId: string,
+      mode: JobMode,
+      prompt: string,
+      pipelineConfig?: PipelineConfig
+    ) =>
+      withLoading(() => {
+        const req: JobRequest = {
+          track_id: trackId,
+          mode,
+          // Só enviamos `user_prompt` quando o usuário digitou algo. Para
+          // modo manual, é opcional; para assisted, o backend ignora se
+          // não houver (com warning — ver worker.rs:400).
+          user_prompt: prompt || undefined,
+          pipeline_config: pipelineConfig,
+        }
+        return fetchJson<JobResponse>(`${BASE_URL}/jobs`, {
+          method: 'POST',
+          body: JSON.stringify(req),
+        })
+      }),
+    [withLoading]
+  )
+
+  const getJob = useCallback(
+    (jobId: string) =>
+      withLoading(() => fetchJson<JobResponse>(`${BASE_URL}/jobs/${jobId}`)),
+    [withLoading]
+  )
+
+  const listJobs = useCallback(
+    () =>
+      withLoading(() =>
+        fetchJson<{ items: JobResponse[] }>(`${BASE_URL}/jobs`)
+      ),
+    [withLoading]
+  )
+
+  const createTrack = useCallback(
+    (req: TrackRequest) =>
+      withLoading(() =>
+        fetchJson<TrackResponse>(`${BASE_URL}/tracks`, {
+          method: 'POST',
+          body: JSON.stringify(req),
+        })
+      ),
+    [withLoading]
+  )
+
+  const getPresignUrl = useCallback(
+    (req: PresignRequest) =>
+      withLoading(() =>
+        fetchJson<PresignResponse>(`${BASE_URL}/uploads/presign`, {
+          method: 'POST',
+          body: JSON.stringify(req),
+        })
+      ),
+    [withLoading]
+  )
+
+  const listProposals = useCallback(
+    (jobId: string) =>
+      withLoading(() =>
+        fetchJson<ProposalResponse[]>(`${BASE_URL}/jobs/${jobId}/proposals`)
+      ),
+    [withLoading]
+  )
+
+  /**
+   * Item C3: `approve` agora aceita `parameters` (para o overlay editável).
+   * Antes mandava `{}` — agora manda os ajustes do usuário.
+   */
+  const approveProposal = useCallback(
+    (jobId: string, proposalId: string, body?: ApproveRequestBody) =>
+      withLoading(() =>
+        fetchJson<unknown>(
+          `${BASE_URL}/jobs/${jobId}/proposals/${proposalId}/approve`,
+          { method: 'POST', body: JSON.stringify(body ?? {}) }
+        )
+      ),
+    [withLoading]
+  )
+
+  const rejectProposal = useCallback(
+    (jobId: string, proposalId: string, reason?: string) =>
+      withLoading(() =>
+        fetchJson<unknown>(
+          `${BASE_URL}/jobs/${jobId}/proposals/${proposalId}/reject`,
+          { method: 'POST', body: JSON.stringify({ reason: reason ?? undefined }) }
+        )
+      ),
+    [withLoading]
+  )
+
+  const getSystemInfo = useCallback(
+    () => withLoading(() => fetchJson<SystemInfo>(`${BASE_URL}/system/info`)),
+    [withLoading]
+  )
+
+  const listTools = useCallback(
+    () =>
+      withLoading(() => fetchJson<{ tools: ToolInfo[] }>(`${BASE_URL}/tools`)),
+    [withLoading]
+  )
+
+  // ─── Plano de design centrado no usuário (etapa única) ─────────────
+
+  /** Biblioteca: `GET /tracks` — usado pela view Biblioteca. */
+  const listTracks = useCallback(
+    () => withLoading(() => fetchJson<TrackResponse[]>(`${BASE_URL}/tracks`)),
+    [withLoading]
+  )
+
+  /** Waveform real (Lote 2): `GET /tracks/{id}/peaks?resolution=N`. */
+  const getTrackPeaks = useCallback(
+    (trackId: string, resolution = 1024) =>
+      withLoading(() =>
+        fetchJson<PeaksResponse>(
+          `${BASE_URL}/tracks/${trackId}/peaks?resolution=${resolution}`
+        )
+      ),
+    [withLoading]
+  )
+
+  /** C6 (Lote 2): cancela job queued/processing; terminal devolve 409. */
+  const cancelJob = useCallback(
+    (jobId: string) =>
+      withLoading(() =>
+        fetchJson<{ job_id: string; status: string }>(
+          `${BASE_URL}/jobs/${jobId}/cancel`,
+          { method: 'POST' }
+        )
+      ),
+    [withLoading]
+  )
+
+  /** C12 (Lote 2): retry só para failed; cria NOVO job_id. */
+  const retryJob = useCallback(
+    (jobId: string) =>
+      withLoading(() =>
+        fetchJson<{ new_job_id: string; status: string }>(
+          `${BASE_URL}/jobs/${jobId}/retry`,
+          { method: 'POST' }
+        )
+      ),
+    [withLoading]
+  )
+
+  /** HITL — "pedir alternativa": POST /proposals/{id}/replan. */
+  const replanProposal = useCallback(
+    (jobId: string, proposalId: string) =>
+      withLoading(() =>
+        fetchJson<unknown>(
+          `${BASE_URL}/jobs/${jobId}/proposals/${proposalId}/replan`,
+          { method: 'POST' }
+        )
+      ),
+    [withLoading]
+  )
+
+  /** LGPD: estado do consentimento do tenant (mock no backend). */
+  const getConsent = useCallback(
+    () => withLoading(() => fetchJson<ConsentInfo>(`${BASE_URL}/tenants/me/consent`)),
+    [withLoading]
+  )
+
+  /** LGPD: registra consentimento para o modo assistido (provider atual). */
+  const postConsent = useCallback(
+    (provider: string) =>
+      withLoading(() =>
+        fetchJson<ConsentInfo>(`${BASE_URL}/tenants/me/consent`, {
+          method: 'POST',
+          body: JSON.stringify({ accepted: true, provider }),
+        })
+      ),
+    [withLoading]
+  )
+
+  /**
+   * LGPD (plano de design): revogação REAL do consentimento do modo
+   * assistido — DELETE /tenants/me/consent. Não é o mesmo que trocar
+   * para modo manual: remove o registro persistido; a revogação vale
+   * para uso futuro e não apaga jobs/auditoria anteriores.
+   */
+  const revokeConsent = useCallback(
+    () =>
+      withLoading(() =>
+        fetchJson<ConsentInfo>(`${BASE_URL}/tenants/me/consent`, {
+          method: 'DELETE',
+        })
+      ),
+    [withLoading]
+  )
+
+  /**
+   * Política de privacidade auditável (GET /system/privacy-policy).
+   * A UI só afirma "o áudio não é enviado" com base neste campo servido
+   * pelo backend — nunca hardcoded.
+   */
+  const getPrivacyPolicy = useCallback(
+    () => withLoading(() => fetchJson<PrivacyPolicy>(`${BASE_URL}/system/privacy-policy`)),
+    [withLoading]
+  )
+
+  return {
+    loading,
+    error,
+    createJob,
+    getJob,
+    listJobs,
+    createTrack,
+    getPresignUrl,
+    listProposals,
+    approveProposal,
+    rejectProposal,
+    getSystemInfo,
+    listTools,
+    listTracks,
+    getTrackPeaks,
+    cancelJob,
+    retryJob,
+    replanProposal,
+    getConsent,
+    postConsent,
+    revokeConsent,
+    getPrivacyPolicy,
+  }
+}

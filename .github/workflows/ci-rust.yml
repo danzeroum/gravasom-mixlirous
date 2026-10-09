@@ -1,0 +1,86 @@
+name: Rust CI
+
+# Roda INCONDICIONALMENTE em todo PR e em todo push para main (issue #5):
+# sem `paths:`, nenhum PR escapa do gate de fmt/clippy/test/audit — um PR
+# que só toca docs, UI ou compose não pode mergear sem o Rust CI passar.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: cargo fmt --check
+        run: cargo fmt --all --check
+
+      - name: cargo clippy -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  build_and_test:
+    needs: lint
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
+
+      - name: Install Python toolchain
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install fixture generator dependencies
+        run: pip install -r scripts/requirements-fixtures.txt
+
+      - name: Generate audio fixtures
+        run: python scripts/generate_fixtures.py --duration 5.0
+
+      - name: Build workspace
+        run: cargo build --workspace
+
+      - name: Run tests
+        run: cargo test --workspace -- --nocapture
+
+  security_scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: cargo-audit
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      # Advisories ignorados (com justificativa e data de revisão) ficam em
+      # .cargo/audit.toml, não inline aqui — cargo-audit só lê esse arquivo
+      # nesse caminho exato (ver .cargo/audit.toml para o porquê do
+      # RUSTSEC-2023-0071).
+      - name: cargo audit
+        run: cargo audit

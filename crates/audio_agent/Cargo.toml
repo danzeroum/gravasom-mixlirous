@@ -1,0 +1,22 @@
+[package]
+name = "audio_agent"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+audio_core = { path = "../audio_core" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+serde_yaml = "0.9.34"
+reqwest = { version = "0.12", features = ["json", "stream"] }
+futures = "0.3"
+regex = "1"
+minijinja = "2"
+chrono.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt"] }
+tempfile = "3"
