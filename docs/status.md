@@ -394,3 +394,43 @@ chave de todas as entregas — instala por cima). **Não verificado:** instalaç
 
 A máquina tem só 4 GB de RAM: o build exigiu daemon com heap controlado, `--no-parallel --max-workers=1` e o nativo
 compilado antes do R8 (o linker deu `Bus error` sob pressão de memória).
+
+---
+
+# Gravasom Mixlirous — integração da Mixlirous (F0–F9)
+
+Atualizado: 2026-10-10 (F0 concluída)
+
+Estados herdam o vocabulário acima. O plano-mestre está no arquivo `plano` na raiz do repositório.
+
+## Resumo por fase (integração)
+
+| Fase | Estado | Falta |
+| --- | --- | --- |
+| F0 — Base | APROVADA-PARCIAL | Compilação/instalação Android não executada neste ambiente (sem Android SDK): vira verificação do dono ou de ambiente com SDK |
+| F1 — Motor Rust no Android | PENDENTE | — |
+| F2 — Análise | PENDENTE | — |
+| F3 — Criar versão (manual) | PENDENTE | — |
+| F4 — Spike da SLM | PENDENTE | — |
+| F5 — Agente | PENDENTE | — |
+| F6 — Criar novos sons | PENDENTE | — |
+| F7 — Transcrição e texto | PENDENTE | — |
+| F8 — Identidade e acabamento | PENDENTE | — |
+| F9 — Entrega | PENDENTE | — |
+
+## F0 — Base
+
+| Gate | Estado | Evidência |
+| --- | --- | --- |
+| Histórico completo do Gravasom no destino | APROVADA | `git push destino --all` e `--tags` OK; remoto: `main` em `b1933f3`, tag `v1.2.0-onda2` (`git ls-remote destino`) |
+| HEAD da base ≥ 2e3a595 | APROVADA | clone em `2e3a595daf0ee6db46bc4b03a18644e428c925b2` (exato) |
+| Plano de integração preservado | APROVADA | merge `--allow-unrelated-histories` (`b1933f3`); arquivo `plano` na raiz |
+| applicationId `com.gravasom.mixlirous` | APROVADA | `app/build.gradle.kts` (namespace mantido `com.gravasom` de propósito) |
+| Nome "Gravasom Mixlirous" | APROVADA | `app/src/main/res/values/strings.xml` e `values-en/strings.xml` |
+| Ícone próprio derivado de docs/design/icone | APROVADA | SVGs em `docs/design/icone-mixlirous/`; drawables recoloridos (anel 7,26:1, barras 5,50:1 sobre fundo — mín. 3:1) |
+| Paleta Mixlirous como padrão | APROVADA | `Paleta.PADRAO = MIXLIROUS` (`core/ui/.../Paleta.kt`); `GravasomTheme` usa o padrão; testes `TemaGeradoTest` atualizados ao novo contrato |
+| versionCode 100 | APROVADA | `app/version.properties` (`versionCode=100`, `versionName=0.1.0-mixlirous`) |
+| Mixlirous em third_party/mixlirous @ 5048a10 | APROVADA | `git subtree add --squash` — commits `078ecae` + merge `fbcc2e2` |
+| Docs da Mixlirous lidos | APROVADA | README, CLAUDE.md, CHANGELOG, docs/00, 03 (contratos + adendo R2), 04, 05, 16, 17.1 — registrados em docs/worklog.md |
+| Compila e instala ao lado do Gravasom | NÃO VERIFICADA | ambiente sem Android SDK — roteiro: `./gradlew :app:assembleDebug` + instalação no aparelho |
+| Testes herdados verdes (unit) | NÃO VERIFICADA | exige Gradle/SDK; mesmo regime do item acima |
