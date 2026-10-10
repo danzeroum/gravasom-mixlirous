@@ -40,6 +40,26 @@ pub fn validar_receita(json: &str) -> Result<ReceitaValidada, ErroReceita> {
         mensagem: e.to_string(),
     })?;
 
+    // Invariante de domínio (docs/04 §1, TargetDuration): duração alvo tem que
+    // ser positiva. `std::time::Duration` não é newtype no upstream — a barreira
+    // fica aqui, na ValidationLayer do app, antes de qualquer render.
+    if config.target_duration.is_zero() {
+        return Err(ErroReceita::Invalida {
+            mensagem: "target_duration deve ser maior que zero".to_string(),
+        });
+    }
+    // Teto de true peak: tabela canônica (docs/05 §3) — min −6, max 0 dB.
+    // `MasteringConfig.peak_db` é f32 cru no upstream (exceção conhecida de
+    // T0.0, docs/16); a barreira fica aqui até virar newtype lá.
+    if !(-6.0..=0.0).contains(&config.mastering.peak_db) {
+        return Err(ErroReceita::Invalida {
+            mensagem: format!(
+                "peak_db deve estar entre -6 e 0; recebido {}",
+                config.mastering.peak_db
+            ),
+        });
+    }
+
     // Re-serializa a receita normalizada: é este JSON que o app salva junto do
     // render para "Refazer igual" (determinístico: mesma receita → mesmo som).
     let normalizado = serde_json::to_string(&config).map_err(|e| ErroReceita::Invalida {

@@ -219,18 +219,18 @@ pub fn executar_agente(
 
     match saida {
         Ok(output) => {
-            // A receita consolidada: contexto final do kernel. Validamos para
-            // garantir que nada fora dos limites chega ao app.
-            let receita_final_json = output
+            // A receita consolidada: contexto final do kernel. Se o que a SLM
+            // montou não valida (alucinação fora dos limites), cai para a
+            // receita manual — o app nunca recebe receita inválida nem vazia.
+            let receita_do_contexto = output
                 .final_context
                 .get("pipeline_config")
                 .and_then(|v| serde_json::to_string(v).ok())
+                .and_then(|json| validar_receita(&json).ok())
+                .map(|r| r.json);
+            let receita_final_json = receita_do_contexto
                 .or_else(|| receita_atual.as_ref().map(|r| r.json.clone()))
-                .unwrap_or_else(|| {
-                    receita_atual
-                        .map(|r| r.json)
-                        .unwrap_or_else(|| crate::receita::receita_padrao())
-                });
+                .unwrap_or_else(crate::receita::receita_padrao);
             let receita = validar_receita(&receita_final_json).ok();
             Ok(SaidaAgente {
                 pensamentos: output.thoughts,
