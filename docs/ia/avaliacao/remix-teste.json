@@ -1,0 +1,29 @@
+{
+  "$esquema": "igual a remix-dev.json. Conjunto de TESTE: não usar para desenvolver o prompt; medir só aqui no fim.",
+  "casos": [
+    { "id": "rem-t01", "intencao": "me manda 30 segundos disso pro reels", "chaves": { "duracao_s": 30, "destino": "reels" } },
+    { "id": "rem-t02", "intencao": "versão de 15s, agressiva", "chaves": { "duracao_s": 15, "destino": "reels", "compressao_ratio": 4.0 } },
+    { "id": "rem-t03", "intencao": "preciso de um corte de 45 segundos com emendas bem suaves", "chaves": { "duracao_s": 45, "crossfade_ms": 2500 } },
+    { "id": "rem-t04", "intencao": "um minuto pra voz, por favor, sem exagero no volume", "chaves": { "duracao_s": 60, "destino": "voz", "compressao_ratio": 2.0 } },
+    { "id": "rem-t05", "intencao": "30s pro shorts do YouTube, comprimido", "chaves": { "duracao_s": 30, "destino": "shorts", "compressao_ratio": 4.0 } },
+    { "id": "rem-t06", "intencao": "corte de vinte segundos sem nenhuma transição", "chaves": { "duracao_s": 20, "crossfade_ms": 0 } },
+    { "id": "rem-t07", "intencao": "trinta segundos com blocos de 8 batidas", "chaves": { "duracao_s": 30, "blocos_por_batida": 8 } },
+    { "id": "rem-t08", "intencao": "loop de 1 compasso do bumbo pra sampler", "chaves": { "criacao": "loop", "compassos": 1 } },
+    { "id": "rem-t09", "intencao": "faz uma textura bem longa com o mar de Jaguanum, uns 6 tiros", "chaves": { "criacao": "textura", "fator": 6.0 } },
+    { "id": "rem-t10", "intencao": "embaralha o ensaio de terça com a gravação do coral", "chaves": { "criacao": "mescla" } },
+    { "id": "rem-t11", "intencao": "os 30 segundos mais animados da jam", "chaves": { "duracao_s": 30, "destino": "streaming" } },
+    { "id": "rem-t12", "intencao": "versão de 2 min e meio, som de rádio", "chaves": { "duracao_s": 150, "destino": "streaming" } },
+    { "id": "rem-t13", "intencao": "quinze segundos, corte na virada da bateria", "chaves": { "duracao_s": 15, "destino": "reels" } },
+    { "id": "rem-t14", "intencao": "quero divulgar no instagram: 30 segundos, bem punchy", "chaves": { "duracao_s": 30, "destino": "reels", "compressao_ratio": 6.0 } },
+    { "id": "rem-t15", "intencao": "versão suave de 60 segundos pra mandar pra minha mãe ouvir", "chaves": { "duracao_s": 60, "destino": "streaming", "compressao_ratio": 2.0 } },
+    { "id": "rem-t16", "intencao": "corta os melhores trechos numa versão de 90 segundos", "chaves": { "duracao_s": 90, "destino": "streaming" } },
+    { "id": "rem-t17", "intencao": "loop de 16 compassos do groove todo", "chaves": { "criacao": "loop", "compassos": 16 } },
+    { "id": "rem-t18", "intencao": "a gravação do rio esticada três vezes vira uma textura boa?", "chaves": { "criacao": "textura", "fator": 3.0 } },
+    { "id": "rem-t19", "intencao": "sobrepõe a ideia de violão com a base gravada", "chaves": { "criacao": "mescla" } },
+    { "id": "rem-t20", "intencao": "30 segundos pra reels com transição de 2 segundos", "chaves": { "duracao_s": 30, "destino": "reels", "crossfade_ms": 2000 } },
+    { "id": "rem-t21", "intencao": "versão de 40 segundos, algo intermediário de agressividade", "chaves": { "duracao_s": 40, "compressao_ratio": 3.0 } },
+    { "id": "rem-t22", "intencao": "corte de 30 s mantendo o mesmo padrão de sempre", "chaves": { "duracao_s": 30, "destino": "reels" } },
+    { "id": "rem-t23", "intencao": "vamo fazer 45 segundos pra divulgar no youtube music", "chaves": { "duracao_s": 45, "destino": "streaming" } },
+    { "id": "rem-t24", "intencao": "loop de 6 compassos da parte do refrão", "chaves": { "criacao": "loop", "compassos": 6 } }
+  ]
+}
