@@ -33,7 +33,7 @@ pub struct FingerprintAudio {
 }
 
 impl FingerprintAudio {
-    fn do_motor(fp: AudioFingerprint) -> Self {
+    pub(crate) fn do_motor(fp: AudioFingerprint) -> Self {
         Self {
             mfcc: fp.mfcc,
             centroid_espectral: fp.spectral_centroid,

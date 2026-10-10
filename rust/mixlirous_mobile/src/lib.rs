@@ -18,6 +18,7 @@ uniffi::setup_scaffolding!("mixlirous_mobile");
 
 pub mod agente;
 pub mod analise;
+pub mod criar;
 pub mod receita;
 pub mod remix;
 
@@ -108,6 +109,80 @@ impl MixEngine {
             provedor,
             eventos,
             orcamento,
+        )
+    }
+
+    // ---------- Criar novos sons (F6) — recomposição do material do usuário ----------
+
+    /// Melhores momentos: maior energia até o alvo; marcadores entram como
+    /// trechos obrigatórios. Não destrutivo.
+    pub fn melhores_momentos(
+        &self,
+        pcm: Vec<f32>,
+        sample_rate: u32,
+        duracao_alvo_s: f64,
+        marcadores: Vec<criar::Marcador>,
+        receita_json: String,
+    ) -> Result<criar::CriacaoResult, criar::ErroCriacao> {
+        criar::melhores_momentos(
+            &pcm,
+            sample_rate,
+            duracao_alvo_s as f32,
+            marcadores,
+            &receita_json,
+        )
+    }
+
+    /// Loop de N compassos com fechamento sem clique (repete sem estalo).
+    pub fn criar_loop(
+        &self,
+        pcm: Vec<f32>,
+        sample_rate: u32,
+        compassos: u32,
+        receita_json: String,
+    ) -> Result<criar::CriacaoResult, criar::ErroCriacao> {
+        criar::criar_loop(&pcm, sample_rate, compassos, &receita_json)
+    }
+
+    /// Textura 2×–8× com fechamento em loop (Natureza/Água).
+    pub fn criar_textura(
+        &self,
+        pcm: Vec<f32>,
+        sample_rate: u32,
+        fator: f64,
+        receita_json: String,
+    ) -> Result<criar::CriacaoResult, criar::ErroCriacao> {
+        criar::criar_textura(&pcm, sample_rate, fator as f32, &receita_json)
+    }
+
+    /// Avisos da mescla ANTES de renderizar (tons e andamento).
+    pub fn avisos_de_mescla(
+        &self,
+        pcm_a: Vec<f32>,
+        pcm_b: Vec<f32>,
+        sample_rate: u32,
+    ) -> Vec<String> {
+        criar::avisos_de_mescla(&pcm_a, &pcm_b, sample_rate)
+    }
+
+    /// Mescla duas gravações (andamento, volume, masterização); com tons
+    /// incompatíveis e `decisao_tons = Recusar`, nada renderiza.
+    pub fn mesclar(
+        &self,
+        pcm_a: Vec<f32>,
+        pcm_b: Vec<f32>,
+        sample_rate: u32,
+        lufs_alvo: f64,
+        decisao_tons: criar::DecisaoTons,
+        receita_json: String,
+    ) -> Result<criar::CriacaoResult, criar::ErroCriacao> {
+        criar::mesclar(
+            &pcm_a,
+            &pcm_b,
+            sample_rate,
+            lufs_alvo as f32,
+            decisao_tons,
+            &receita_json,
         )
     }
 }
