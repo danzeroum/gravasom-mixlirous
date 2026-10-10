@@ -1,8 +1,12 @@
-# Gravasom
+# Gravasom Mixlirous
 
-Gravador de áudio para Android, nativo em Kotlin, que grava em **M4A (AAC)**, **WAV (PCM)** ou **MP3**, funciona totalmente offline e guarda tudo no aparelho.
+Gravador de áudio para Android, nativo em Kotlin, que grava em **M4A (AAC)**, **WAV (PCM)** ou **MP3**, funciona totalmente offline e guarda tudo no aparelho — **e agora recompõe**: o motor da [Mixlirous](https://github.com/danzeroum/mixlirous) (Rust, em `third_party/mixlirous`) roda no aparelho para analisar (BPM, tom, energia), criar versões remixadas por receita validada, criar loops/texturas/mesclas e masterizar por destino, com uma SLM local propondo receitas que **você aprova**.
 
-![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84) ![Kotlin 2.0](https://img.shields.io/badge/Kotlin-2.0-7F52FF) ![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4) ![Offline](https://img.shields.io/badge/rede-nenhuma-lightgrey)
+![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84) ![Kotlin 2.0](https://img.shields.io/badge/Kotlin%202.x-7F52FF) ![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4) ![Rust](https://img.shields.io/badge/motor-Rust%20%2B%20UniFFI-DEA584) ![Offline](https://img.shields.io/badge/rede-só%20o%20ModelManager-lightgrey)
+
+**Princípios inegociáveis** (herdados da Mixlirous): não gera música, recompõe a sua · a IA nunca toca no PCM, só preenche receitas validadas · nada da IA é aplicado sem aprovação · tudo não destrutivo (original com o mesmo SHA-256) · áudio, transcrições e receitas nunca saem do aparelho (a única rede é o download de modelo, com consentimento e SHA-256 — ADR-017).
+
+Estado da integração F0–F9, verificado × não verificado: [`docs/status.md`](docs/status.md) · Roteiro do dono no aparelho (≤ 30 min): [`docs/teste-aparelho-real-mixlirous.md`](docs/teste-aparelho-real-mixlirous.md) · Patches na Mixlirous: [`docs/mixlirous-patches.md`](docs/mixlirous-patches.md) · ADRs novos: [016 — SLM local](docs/adr/016-slm-local.md) · [017 — ModelManager](docs/adr/017-model-manager.md).
 
 ---
 

@@ -409,14 +409,14 @@ Estados herdam o vocabulário acima. O plano-mestre está no arquivo `plano` na 
 | --- | --- | --- |
 | F0 — Base | APROVADA-PARCIAL | Compilação/instalação Android não executada neste ambiente (sem Android SDK): vira verificação do dono ou de ambiente com SDK |
 | F1 — Motor Rust no Android | APROVADA-PARCIAL | Rust verificado no host (testes + clippy + golden master); cargo-ndk/APK/JNI no aparelho pendentes de SDK/NDK — roteiro do dono |
-| F2 — Análise | PENDENTE | — |
-| F3 — Criar versão (manual) | PENDENTE | — |
-| F4 — Spike da SLM | PENDENTE | — |
-| F5 — Agente | PENDENTE | — |
-| F6 — Criar novos sons | PENDENTE | — |
-| F7 — Transcrição e texto | PENDENTE | — |
-| F8 — Identidade e acabamento | PENDENTE | — |
-| F9 — Entrega | PENDENTE | — |
+| F2 — Análise | PENDENTE (Android) | motor Rust pronto e verificado no host; faltam Room v6, WorkManager, etiquetas/filtros em Kotlin — verificados no aparelho |
+| F3 — Criar versão (manual) | PENDENTE (Android) | render/validação/fingerprint verificados no host; tela de receita + "Refazer igual" em Kotlin pendentes |
+| F4 — Spike da SLM | APROVADA-PARCIAL | corpus de 80 casos + ADR-016/017 prontos e verificados no host; medições no aparelho pendentes (roteiro do dono) |
+| F5 — Agente | APROVADA-PARCIAL | kernel ReAct + callbacks Kotlin + fallback verificados no host; teste de propriedade com 1000 saídas: 0 receitas fora dos limites; telas HITL em Kotlin pendentes |
+| F6 — Criar novos sons | APROVADA-PARCIAL | 4 funções em Rust com testes (loop 20× sem estalo, mescla avisa tons incompatíveis, textura 2–8×, melhores momentos com marcadores); telas em Kotlin pendentes |
+| F7 — Transcrição e texto | PENDENTE | whisper embutido (ADR-013 herdado) e casos armadilha no corpus; integração JNI no aparelho pendente |
+| F8 — Identidade e acabamento | APROVADA-PARCIAL | paleta Mixlirous padrão com testes atualizados; seletor/tile/widget (Parte B) e acessibilidade pendentes |
+| F9 — Entrega | APROVADA-PARCIAL | README, roteiro do dono, ADRs e status completos; APK release arm64 assinado exige SDK/NDK (não existe neste ambiente) |
 
 ## F0 — Base
 
@@ -447,3 +447,41 @@ Estados herdam o vocabulário acima. O plano-mestre está no arquivo `plano` na 
 | Teste JNI com golden master no aparelho | NÃO VERIFICADA | sem emulador/NDK aqui; vira item do roteiro do dono (o caminho Rust já provado no host) |
 | `:core:mixengine` compila no Gradle | NÃO VERIFICADA | exige SDK/NDK; tarefas cargo-ndk escritas (debug arm64+x86_64, release arm64) |
 | Detekt/lint/testes Kotlin | NÃO VERIFICADA | idem |
+
+### F4 — Spike da SLM
+
+| Gate | Estado | Evidência |
+| --- | --- | --- |
+| Corpus ≥ 80 intenções pt-BR (60 remix + 20 texto), dev/teste | APROVADA | docs/ia/avaliacao/ (36+24 remix, 12+8 texto); contagens verificadas por `cargo test --test corpus_avaliacao` |
+| Receitas esperadas validam | APROVADA | mesmo teste: todas passam na ValidationLayer |
+| ADR-016 com protocolo | APROVADA | docs/adr/016-slm-local.md (números: a medir no aparelho) |
+| ModelManager (consentimento/SHA-256/importação) | PROPOSTA | ADR-017; implementação Kotlin pendente de SDK |
+
+### F5 — Agente
+
+| Gate | Estado | Evidência |
+| --- | --- | --- |
+| LlmProvider local via callback UniFFI | APROVADA | `agente.rs`: `ProvedorLlmKotlin` (with_foreign) → `LlmProvider` por spawn_blocking; eventos → `EventosAgenteKotlin` |
+| ValidationLayer obrigatória + prompt_guard | APROVADA | injeção rejeitada (teste); receita sempre validada antes do app |
+| Fallback para receita manual | APROVADA | SLM fora → `caiu_no_fallback` com a receita manual preservada (teste) |
+| 1000 saídas aleatórias → 0 fora dos limites | APROVADA | `tests/propriedade_modelo.rs` (verde); 3 falhas reais corrigidas na barreira |
+| ≥ 90% válidas na 1ª tentativa | NÃO VERIFICADA | depende da SLM escolhida rodando no aparelho (ADR-016) |
+
+### F6 — Criar novos sons
+
+| Gate | Estado | Evidência |
+| --- | --- | --- |
+| Melhores momentos (knapsack + marcadores obrigatórios) | APROVADA (host) | teste: marcadores entram; ordem cronológica |
+| Loop de N compassos sem clique | APROVADA (host) | teste: 4 compassos × 20 repetições, emenda ≤ 1,5× do corpo (I4.1) |
+| Textura 2×–8× fechada em loop | APROVADA (host) | teste: 4× com fechamento; fora da faixa recusado |
+| Mesclar + aviso de tons incompatíveis | APROVADA (host) | teste: Lá menor × Mi♭ maior avisa e recusa sem confirmação (HITL) |
+| Loops/telas no aparelho | NÃO VERIFICADA | Kotlin + aparelho do dono |
+
+### F9 — Entrega
+
+| Gate | Estado | Evidência |
+| --- | --- | --- |
+| README e roteiro do dono | APROVADA | README.md (nova identidade) + docs/teste-aparelho-real-mixlirous.md |
+| docs/status.md completo | APROVADA | este documento |
+| APK release arm64 assinado | NÃO VERIFICADA | exige SDK/NDK; roteiro de preparo no roteiro do dono |
+| PR com resumo | APROVADA | branch relatorio/entrega-f0-f9 → main |

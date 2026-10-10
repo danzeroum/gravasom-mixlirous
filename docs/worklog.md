@@ -165,3 +165,45 @@ decodificação continua no Kotlin.
   provar o carregamento JNI na ABI arm64.
 - Reproduzir: `rustup target add aarch64-linux-android` + NDK 27 + `cargo
   install cargo-ndk`, depois `./gradlew :app:assembleDebug`.
+
+---
+
+## F4/F5/F6 (partes verificáveis no host) + F9 (documentação) — 2026-10-10
+
+**F5 — Teste de propriedade (plano):** `tests/propriedade_modelo.rs` roda 1000
+casos: SLM alucinada (6 famílias de lixo JSON) + receitas diretas envenenadas.
+Resultado: **0 receitas fora dos limites chegam ao render**. O teste apanhou
+três falhas reais na barreira do app (corrigidas):
+1. `executar_agente` entregava `receita: None` quando o contexto da SLM era
+   inválido → agora cai na receita manual (o app nunca recebe None).
+2. `target_duration: 0` desserializava (Duration não é newtype no upstream) →
+   bloqueado na ValidationLayer do app (docs/04 §1).
+3. `peak_db` sem newtype no upstream (exceção conhecida de docs/16) → faixa
+   canônica [−6, 0] de docs/05 §3 aplicada no app.
+Verificação: `cargo test -p mixlirous_mobile` → 25 testes verdes; clippy -D
+warnings limpo; fmt limpo.
+
+**F6 — Criar novos sons (Rust, verificado no host):** `criar.rs` com os quatro
+recursos, todos recompondo material do usuário. Loop: fechamento em crossfade
+com descarte da cabeça já tocada no fade-in (emenda S[x−1]→S[x] contínua — a
+primeira construção, que duplicava a cabeça, criava eco-travão e foi corrigida
+com o teste de 20 repetições do plano). Mescla: aviso de tons por círculo de
+quintas (relativa e quinta contam como compatíveis), HITL com `DecisaoTons`
+(recusar → nada renderiza), masterização na ordem de docs/16 §4.
+Bindings UniFFI regeneradas. 22 testes de biblioteca verdes.
+
+**F4 — Corpus + ADRs:** 80 casos (36+24 remix, 12+8 texto) com armadilhas de
+fidelidade e injeção; harness `tests/corpus_avaliacao.rs` verificado (o teste
+apanhou ambiguidades do próprio corpus — "segunda parte", "sexta maior" —
+corrigidas nos dados, sem afrouxar verificação). ADR-016 (escolha da SLM por
+medição) e ADR-017 (ModelManager, única porta de rede).
+
+**F9:** README com a identidade nova; `docs/teste-aparelho-real-mixlirous.md`
+(roteiro ≤ 30 min); status final F2–F9 honesto (verificado × não verificado).
+
+### Não verificado (sem Android SDK/NDK/emulador neste ambiente)
+
+- F2/F3/F8 em Kotlin (Room v6, WorkManager, telas de receita/criação, Parte B),
+  F7 (JNI whisper), APK release assinado, medições de tempo no aparelho,
+  spike da SLM no aparelho (ADR-016).
+- Tudo isso está no roteiro do dono com o que observar e registrar.
