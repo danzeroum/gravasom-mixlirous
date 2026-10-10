@@ -33,3 +33,6 @@ __pycache__/
 # Kotlin
 .kotlin/
 tests-out/
+
+# Rust (motor Mixlirous)
+rust/target/

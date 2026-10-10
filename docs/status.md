@@ -408,7 +408,7 @@ Estados herdam o vocabulário acima. O plano-mestre está no arquivo `plano` na 
 | Fase | Estado | Falta |
 | --- | --- | --- |
 | F0 — Base | APROVADA-PARCIAL | Compilação/instalação Android não executada neste ambiente (sem Android SDK): vira verificação do dono ou de ambiente com SDK |
-| F1 — Motor Rust no Android | PENDENTE | — |
+| F1 — Motor Rust no Android | APROVADA-PARCIAL | Rust verificado no host (testes + clippy + golden master); cargo-ndk/APK/JNI no aparelho pendentes de SDK/NDK — roteiro do dono |
 | F2 — Análise | PENDENTE | — |
 | F3 — Criar versão (manual) | PENDENTE | — |
 | F4 — Spike da SLM | PENDENTE | — |
@@ -434,3 +434,16 @@ Estados herdam o vocabulário acima. O plano-mestre está no arquivo `plano` na 
 | Docs da Mixlirous lidos | APROVADA | README, CLAUDE.md, CHANGELOG, docs/00, 03 (contratos + adendo R2), 04, 05, 16, 17.1 — registrados em docs/worklog.md |
 | Compila e instala ao lado do Gravasom | NÃO VERIFICADA | ambiente sem Android SDK — roteiro: `./gradlew :app:assembleDebug` + instalação no aparelho |
 | Testes herdados verdes (unit) | NÃO VERIFICADA | exige Gradle/SDK; mesmo regime do item acima |
+
+### F1 — Motor Rust no Android
+
+| Gate | Estado | Evidência |
+| --- | --- | --- |
+| Crate `rust/mixlirous_mobile` (UniFFI) | APROVADA | 16 unit + 2 integração verdes; bindings Kotlin geradas e commitadas |
+| `cargo test` do workspace Rust no host | APROVADA | `mixlirous_mobile` 18/18; subtree: `audio_agent` 71, `audio_core` 207 + 90 de integração/acústicos, 0 falhas |
+| `cargo clippy -D warnings` | APROVADA | 0 erros (workspace `rust/`) |
+| `reqwest` atrás de feature desligada | APROVADA | P1: `default-features = false` no app; `cargo test` do upstream intacto com default |
+| Golden master (host) | APROVADA | `golden_master.rs`: fingerprint < 0,05 sobre WAV real do corpus; pico ≤ teto; I15 |
+| Teste JNI com golden master no aparelho | NÃO VERIFICADA | sem emulador/NDK aqui; vira item do roteiro do dono (o caminho Rust já provado no host) |
+| `:core:mixengine` compila no Gradle | NÃO VERIFICADA | exige SDK/NDK; tarefas cargo-ndk escritas (debug arm64+x86_64, release arm64) |
+| Detekt/lint/testes Kotlin | NÃO VERIFICADA | idem |

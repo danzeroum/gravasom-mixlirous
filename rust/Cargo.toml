@@ -1,0 +1,9 @@
+# Workspace Rust do Gravasom Mixlirous.
+#
+# O crate `mixlirous_mobile` é a ponte UniFFI entre o app Android (Kotlin) e o
+# motor da Mixlirous (`third_party/mixlirous`): análise, pipeline de remix,
+# validação de receitas e o kernel ReAct. Decodificação de arquivos continua no
+# Kotlin (PcmDecoder do Gravasom) — o Rust recebe e devolve PCM.
+[workspace]
+resolver = "2"
+members = ["mixlirous_mobile"]

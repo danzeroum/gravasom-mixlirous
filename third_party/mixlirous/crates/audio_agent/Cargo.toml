@@ -3,6 +3,15 @@ name = "audio_agent"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+# Patch do Gravasom Mixlirous: a rede (reqwest) fica atrás da feature "network".
+# Os provedores HTTP (openai, ollama) exigem a feature; o núcleo do agente
+# (react_kernel, validator, limits, tools, prompt_guard) e o MockLlm compilam
+# sem rede — é o caso do celular, onde o provedor LLM é local e entra por
+# callback (ver docs/mixlirous-patches.md no repositório raiz).
+default = ["network"]
+network = ["dep:reqwest"]
+
 [dependencies]
 audio_core = { path = "../audio_core" }
 serde.workspace = true
@@ -10,7 +19,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 async-trait.workspace = true
 serde_yaml = "0.9.34"
-reqwest = { version = "0.12", features = ["json", "stream"] }
+reqwest = { version = "0.12", features = ["json", "stream"], optional = true }
 futures = "0.3"
 regex = "1"
 minijinja = "2"

@@ -1,0 +1,4 @@
+[bindings.kotlin]
+# Namespace das bindings geradas dentro do módulo :core:mixengine.
+package_name = "com.gravasom.core.mixengine.motor"
+generate_immutable_records = true

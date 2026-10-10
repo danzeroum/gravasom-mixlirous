@@ -47,9 +47,13 @@ pub trait LlmProvider: Send + Sync {
 }
 
 pub mod mock;
+#[cfg(feature = "network")]
 mod ollama;
+#[cfg(feature = "network")]
 pub mod openai;
 
 pub use mock::MockLlm;
+#[cfg(feature = "network")]
 pub use ollama::OllamaProvider;
+#[cfg(feature = "network")]
 pub use openai::OpenAiProvider;

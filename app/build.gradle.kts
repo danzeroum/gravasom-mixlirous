@@ -70,6 +70,7 @@ dependencies {
     implementation(project(":core:service"))
     implementation(project(":core:ui"))
     implementation(project(":core:dsp"))
+    implementation(project(":core:mixengine"))
     implementation(project(":feature:record"))
     implementation(project(":feature:library"))
     implementation(project(":feature:player"))
