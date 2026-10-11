@@ -84,7 +84,8 @@ class MigracaoV5Test {
 
     private fun abrirV5(): GravasomDatabase = Room.databaseBuilder(context, GravasomDatabase::class.java, nome)
         .addMigrations(
-            GravasomDatabase.MIGRATION_1_2, GravasomDatabase.MIGRATION_2_3, GravasomDatabase.MIGRATION_3_4, GravasomDatabase.MIGRATION_4_5,
+            GravasomDatabase.MIGRATION_1_2, GravasomDatabase.MIGRATION_2_3, GravasomDatabase.MIGRATION_3_4,
+            GravasomDatabase.MIGRATION_4_5, GravasomDatabase.MIGRATION_5_6,
         )
         .allowMainThreadQueries()
         .build().also { db = it }

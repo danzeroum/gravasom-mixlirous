@@ -14,7 +14,10 @@ dependencies {
     implementation(project(":core:audio-android"))
     implementation(project(":core:data"))
     implementation(project(":core:dsp"))
+    // Workers de analise/criacao Mixlirous (F2/F3) falam com o motor via MotorMixlirous.
+    implementation(project(":core:mixengine"))
     implementation(libs.coroutines.android)
+    implementation(libs.androidx.work.runtime)
     implementation(libs.timber)
     implementation(libs.androidx.core.ktx)
     implementation(libs.glance.appwidget)
