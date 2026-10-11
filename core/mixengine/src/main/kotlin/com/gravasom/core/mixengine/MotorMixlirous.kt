@@ -35,7 +35,8 @@ object MotorMixlirous {
             check(carregar()) {
                 "libmixlirous_mobile.so ausente — a ABI deste aparelho não está no APK"
             }
-            return MixEngine().also { motor = it }
+            // UniFFI 0.32: construtores viram funções de companion (novo()).
+            return MixEngine.novo().also { motor = it }
         }
     }
 

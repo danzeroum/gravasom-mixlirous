@@ -11,6 +11,8 @@ hilt = "2.52"
 hiltNavigationCompose = "1.2.0"
 coroutines = "1.9.0"
 room = "2.6.1"
+work = "2.10.0"
+jna = "5.14.0"
 paging = "3.3.5"
 media3 = "1.5.0"
 datastore = "1.1.1"
@@ -58,6 +60,8 @@ androidx-navigation-compose = { module = "androidx.navigation:navigation-compose
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hilt-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hilt" }
 hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
+androidx-work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
+jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }

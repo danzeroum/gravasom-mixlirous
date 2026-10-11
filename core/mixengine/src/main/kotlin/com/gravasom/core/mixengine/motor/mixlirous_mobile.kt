@@ -763,11 +763,21 @@ internal object IntegrityCheckingUniffiLib {
     internal fun ensureInitialized() = Unit
     external fun uniffi_mixlirous_mobile_checksum_method_mixengine_analisar(
     ): Int
+    external fun uniffi_mixlirous_mobile_checksum_method_mixengine_avisos_de_mescla(
+    ): Int
+    external fun uniffi_mixlirous_mobile_checksum_method_mixengine_criar_loop(
+    ): Int
+    external fun uniffi_mixlirous_mobile_checksum_method_mixengine_criar_textura(
+    ): Int
     external fun uniffi_mixlirous_mobile_checksum_method_mixengine_distancia_fingerprint(
     ): Int
     external fun uniffi_mixlirous_mobile_checksum_method_mixengine_executar_agente(
     ): Int
     external fun uniffi_mixlirous_mobile_checksum_method_mixengine_fingerprint_de_pcm(
+    ): Int
+    external fun uniffi_mixlirous_mobile_checksum_method_mixengine_melhores_momentos(
+    ): Int
+    external fun uniffi_mixlirous_mobile_checksum_method_mixengine_mesclar(
     ): Int
     external fun uniffi_mixlirous_mobile_checksum_method_mixengine_receita_padrao(
     ): Int
@@ -827,11 +837,21 @@ internal object UniffiLib {
     ): Long
     external fun uniffi_mixlirous_mobile_fn_method_mixengine_analisar(`ptr`: Long,`pcm`: RustBuffer.ByValue,`sampleRate`: Int,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    external fun uniffi_mixlirous_mobile_fn_method_mixengine_avisos_de_mescla(`ptr`: Long,`pcmA`: RustBuffer.ByValue,`pcmB`: RustBuffer.ByValue,`sampleRate`: Int,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_mixlirous_mobile_fn_method_mixengine_criar_loop(`ptr`: Long,`pcm`: RustBuffer.ByValue,`sampleRate`: Int,`compassos`: Int,`receitaJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_mixlirous_mobile_fn_method_mixengine_criar_textura(`ptr`: Long,`pcm`: RustBuffer.ByValue,`sampleRate`: Int,`fator`: Double,`receitaJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     external fun uniffi_mixlirous_mobile_fn_method_mixengine_distancia_fingerprint(`ptr`: Long,`a`: RustBuffer.ByValue,`b`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_mixlirous_mobile_fn_method_mixengine_executar_agente(`ptr`: Long,`intencao`: RustBuffer.ByValue,`contextoJson`: RustBuffer.ByValue,`receitaAtualJson`: RustBuffer.ByValue,`provedor`: Long,`eventos`: Long,`orcamento`: Byte,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_mixlirous_mobile_fn_method_mixengine_fingerprint_de_pcm(`ptr`: Long,`pcm`: RustBuffer.ByValue,`sampleRate`: Int,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_mixlirous_mobile_fn_method_mixengine_melhores_momentos(`ptr`: Long,`pcm`: RustBuffer.ByValue,`sampleRate`: Int,`duracaoAlvoS`: Double,`marcadores`: RustBuffer.ByValue,`receitaJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_mixlirous_mobile_fn_method_mixengine_mesclar(`ptr`: Long,`pcmA`: RustBuffer.ByValue,`pcmB`: RustBuffer.ByValue,`sampleRate`: Int,`lufsAlvo`: Double,`decisaoTons`: RustBuffer.ByValue,`receitaJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_mixlirous_mobile_fn_method_mixengine_receita_padrao(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
@@ -993,6 +1013,15 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_mixlirous_mobile_checksum_method_mixengine_analisar() and 0xFFFF) != 31044) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_mixlirous_mobile_checksum_method_mixengine_avisos_de_mescla() and 0xFFFF) != 23715) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_mixlirous_mobile_checksum_method_mixengine_criar_loop() and 0xFFFF) != 42049) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_mixlirous_mobile_checksum_method_mixengine_criar_textura() and 0xFFFF) != 57832) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_mixlirous_mobile_checksum_method_mixengine_distancia_fingerprint() and 0xFFFF) != 61363) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1000,6 +1029,12 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_mixlirous_mobile_checksum_method_mixengine_fingerprint_de_pcm() and 0xFFFF) != 28624) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_mixlirous_mobile_checksum_method_mixengine_melhores_momentos() and 0xFFFF) != 56865) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_mixlirous_mobile_checksum_method_mixengine_mesclar() and 0xFFFF) != 20447) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_mixlirous_mobile_checksum_method_mixengine_receita_padrao() and 0xFFFF) != 60074) {
@@ -2104,6 +2139,21 @@ public interface MixEngineInterface {
     fun `analisar`(`pcm`: List<kotlin.Float>, `sampleRate`: kotlin.UInt): AnaliseAudio
     
     /**
+     * Avisos da mescla ANTES de renderizar (tons e andamento).
+     */
+    fun `avisosDeMescla`(`pcmA`: List<kotlin.Float>, `pcmB`: List<kotlin.Float>, `sampleRate`: kotlin.UInt): List<kotlin.String>
+    
+    /**
+     * Loop de N compassos com fechamento sem clique (repete sem estalo).
+     */
+    fun `criarLoop`(`pcm`: List<kotlin.Float>, `sampleRate`: kotlin.UInt, `compassos`: kotlin.UInt, `receitaJson`: kotlin.String): CriacaoResult
+    
+    /**
+     * Textura 2×–8× com fechamento em loop (Natureza/Água).
+     */
+    fun `criarTextura`(`pcm`: List<kotlin.Float>, `sampleRate`: kotlin.UInt, `fator`: kotlin.Double, `receitaJson`: kotlin.String): CriacaoResult
+    
+    /**
      * Distância de fingerprint entre dois renders (mesmo som < 0,05).
      */
     fun `distanciaFingerprint`(`a`: FingerprintAudio, `b`: FingerprintAudio): kotlin.Double?
@@ -2119,6 +2169,18 @@ public interface MixEngineInterface {
      * Fingerprint de um PCM bruto (golden master do original).
      */
     fun `fingerprintDePcm`(`pcm`: List<kotlin.Float>, `sampleRate`: kotlin.UInt): FingerprintAudio
+    
+    /**
+     * Melhores momentos: maior energia até o alvo; marcadores entram como
+     * trechos obrigatórios. Não destrutivo.
+     */
+    fun `melhoresMomentos`(`pcm`: List<kotlin.Float>, `sampleRate`: kotlin.UInt, `duracaoAlvoS`: kotlin.Double, `marcadores`: List<Marcador>, `receitaJson`: kotlin.String): CriacaoResult
+    
+    /**
+     * Mescla duas gravações (andamento, volume, masterização); com tons
+     * incompatíveis e `decisao_tons = Recusar`, nada renderiza.
+     */
+    fun `mesclar`(`pcmA`: List<kotlin.Float>, `pcmB`: List<kotlin.Float>, `sampleRate`: kotlin.UInt, `lufsAlvo`: kotlin.Double, `decisaoTons`: DecisaoTons, `receitaJson`: kotlin.String): CriacaoResult
     
     /**
      * Receita padrão (fallback sem modelo e ponto de partida da tela manual).
@@ -2271,6 +2333,67 @@ open class MixEngine: Disposable, AutoCloseable, MixEngineInterface
 
     
     /**
+     * Avisos da mescla ANTES de renderizar (tons e andamento).
+     */override fun `avisosDeMescla`(`pcmA`: List<kotlin.Float>, `pcmB`: List<kotlin.Float>, `sampleRate`: kotlin.UInt): List<kotlin.String> {
+            return FfiConverterSequenceString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_mixlirous_mobile_fn_method_mixengine_avisos_de_mescla(
+        it,
+        
+        FfiConverterSequenceFloat.lower(`pcmA`),
+        FfiConverterSequenceFloat.lower(`pcmB`),
+        FfiConverterUInt.lower(`sampleRate`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Loop de N compassos com fechamento sem clique (repete sem estalo).
+     */
+    @Throws(ErroCriacao::class)override fun `criarLoop`(`pcm`: List<kotlin.Float>, `sampleRate`: kotlin.UInt, `compassos`: kotlin.UInt, `receitaJson`: kotlin.String): CriacaoResult {
+            return FfiConverterTypeCriacaoResult.lift(
+    callWithHandle {
+    uniffiRustCallWithError(ErroCriacao) { _status ->
+    UniffiLib.uniffi_mixlirous_mobile_fn_method_mixengine_criar_loop(
+        it,
+        
+        FfiConverterSequenceFloat.lower(`pcm`),
+        FfiConverterUInt.lower(`sampleRate`),
+        FfiConverterUInt.lower(`compassos`),
+        FfiConverterString.lower(`receitaJson`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Textura 2×–8× com fechamento em loop (Natureza/Água).
+     */
+    @Throws(ErroCriacao::class)override fun `criarTextura`(`pcm`: List<kotlin.Float>, `sampleRate`: kotlin.UInt, `fator`: kotlin.Double, `receitaJson`: kotlin.String): CriacaoResult {
+            return FfiConverterTypeCriacaoResult.lift(
+    callWithHandle {
+    uniffiRustCallWithError(ErroCriacao) { _status ->
+    UniffiLib.uniffi_mixlirous_mobile_fn_method_mixengine_criar_textura(
+        it,
+        
+        FfiConverterSequenceFloat.lower(`pcm`),
+        FfiConverterUInt.lower(`sampleRate`),
+        FfiConverterDouble.lower(`fator`),
+        FfiConverterString.lower(`receitaJson`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Distância de fingerprint entre dois renders (mesmo som < 0,05).
      */override fun `distanciaFingerprint`(`a`: FingerprintAudio, `b`: FingerprintAudio): kotlin.Double? {
             return FfiConverterOptionalDouble.lift(
@@ -2324,6 +2447,53 @@ open class MixEngine: Disposable, AutoCloseable, MixEngineInterface
         
         FfiConverterSequenceFloat.lower(`pcm`),
         FfiConverterUInt.lower(`sampleRate`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Melhores momentos: maior energia até o alvo; marcadores entram como
+     * trechos obrigatórios. Não destrutivo.
+     */
+    @Throws(ErroCriacao::class)override fun `melhoresMomentos`(`pcm`: List<kotlin.Float>, `sampleRate`: kotlin.UInt, `duracaoAlvoS`: kotlin.Double, `marcadores`: List<Marcador>, `receitaJson`: kotlin.String): CriacaoResult {
+            return FfiConverterTypeCriacaoResult.lift(
+    callWithHandle {
+    uniffiRustCallWithError(ErroCriacao) { _status ->
+    UniffiLib.uniffi_mixlirous_mobile_fn_method_mixengine_melhores_momentos(
+        it,
+        
+        FfiConverterSequenceFloat.lower(`pcm`),
+        FfiConverterUInt.lower(`sampleRate`),
+        FfiConverterDouble.lower(`duracaoAlvoS`),
+        FfiConverterSequenceTypeMarcador.lower(`marcadores`),
+        FfiConverterString.lower(`receitaJson`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Mescla duas gravações (andamento, volume, masterização); com tons
+     * incompatíveis e `decisao_tons = Recusar`, nada renderiza.
+     */
+    @Throws(ErroCriacao::class)override fun `mesclar`(`pcmA`: List<kotlin.Float>, `pcmB`: List<kotlin.Float>, `sampleRate`: kotlin.UInt, `lufsAlvo`: kotlin.Double, `decisaoTons`: DecisaoTons, `receitaJson`: kotlin.String): CriacaoResult {
+            return FfiConverterTypeCriacaoResult.lift(
+    callWithHandle {
+    uniffiRustCallWithError(ErroCriacao) { _status ->
+    UniffiLib.uniffi_mixlirous_mobile_fn_method_mixengine_mesclar(
+        it,
+        
+        FfiConverterSequenceFloat.lower(`pcmA`),
+        FfiConverterSequenceFloat.lower(`pcmB`),
+        FfiConverterUInt.lower(`sampleRate`),
+        FfiConverterDouble.lower(`lufsAlvo`),
+        FfiConverterTypeDecisaoTons.lower(`decisaoTons`),
+        FfiConverterString.lower(`receitaJson`),_status)
 }
     }
     )
@@ -2890,6 +3060,62 @@ public object FfiConverterTypeAnaliseAudio: FfiConverterRustBuffer<AnaliseAudio>
 
 
 /**
+ * Resultado de uma criação: PCM novo + metadados + avisos.
+ */
+data class CriacaoResult (
+    val `pcm`: List<kotlin.Float>
+    , 
+    val `sampleRate`: kotlin.UInt
+    , 
+    val `duracaoS`: kotlin.Float
+    , 
+    val `avisos`: List<kotlin.String>
+    , 
+    val `fingerprint`: FingerprintAudio
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeCriacaoResult: FfiConverterRustBuffer<CriacaoResult> {
+    override fun read(buf: ByteBuffer): CriacaoResult {
+        return CriacaoResult(
+            FfiConverterSequenceFloat.read(buf),
+            FfiConverterUInt.read(buf),
+            FfiConverterFloat.read(buf),
+            FfiConverterSequenceString.read(buf),
+            FfiConverterTypeFingerprintAudio.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: CriacaoResult) = (
+            FfiConverterSequenceFloat.allocationSize(value.`pcm`) +
+            FfiConverterUInt.allocationSize(value.`sampleRate`) +
+            FfiConverterFloat.allocationSize(value.`duracaoS`) +
+            FfiConverterSequenceString.allocationSize(value.`avisos`) +
+            FfiConverterTypeFingerprintAudio.allocationSize(value.`fingerprint`)
+    )
+
+    override fun write(value: CriacaoResult, buf: ByteBuffer) {
+            FfiConverterSequenceFloat.write(value.`pcm`, buf)
+            FfiConverterUInt.write(value.`sampleRate`, buf)
+            FfiConverterFloat.write(value.`duracaoS`, buf)
+            FfiConverterSequenceString.write(value.`avisos`, buf)
+            FfiConverterTypeFingerprintAudio.write(value.`fingerprint`, buf)
+    }
+}
+
+
+
+/**
  * Energia RMS de um trecho do sinal (janela fixa da análise).
  */
 data class EnergiaTrecho (
@@ -3007,6 +3233,47 @@ public object FfiConverterTypeFingerprintAudio: FfiConverterRustBuffer<Fingerpri
             FfiConverterFloat.write(value.`razaoPico`, buf)
             FfiConverterFloat.write(value.`duracaoS`, buf)
             FfiConverterOptionalFloat.write(value.`lufs`, buf)
+    }
+}
+
+
+
+/**
+ * Trecho obrigatório do usuário (marcador), em milissegundos.
+ */
+data class Marcador (
+    val `inicioMs`: kotlin.ULong
+    , 
+    val `fimMs`: kotlin.ULong
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeMarcador: FfiConverterRustBuffer<Marcador> {
+    override fun read(buf: ByteBuffer): Marcador {
+        return Marcador(
+            FfiConverterULong.read(buf),
+            FfiConverterULong.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: Marcador) = (
+            FfiConverterULong.allocationSize(value.`inicioMs`) +
+            FfiConverterULong.allocationSize(value.`fimMs`)
+    )
+
+    override fun write(value: Marcador, buf: ByteBuffer) {
+            FfiConverterULong.write(value.`inicioMs`, buf)
+            FfiConverterULong.write(value.`fimMs`, buf)
     }
 }
 
@@ -3241,6 +3508,49 @@ public object FfiConverterTypeSaidaAgente: FfiConverterRustBuffer<SaidaAgente> {
 
 
 
+/**
+ * Confirmação humana para mesclar com tons incompatíveis (HITL).
+ */
+
+enum class DecisaoTons {
+    
+    /**
+     * Renderiza mesmo com aviso (o usuário decidiu).
+     */
+    SEGUIR,
+    /**
+     * Não renderiza; a tela mostra o aviso e o usuário ajusta a seleção.
+     */
+    RECUSAR;
+
+    
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeDecisaoTons: FfiConverterRustBuffer<DecisaoTons> {
+    override fun read(buf: ByteBuffer) = try {
+        DecisaoTons.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: DecisaoTons) = 4UL
+
+    override fun write(value: DecisaoTons, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
 
 
 /**
@@ -3317,6 +3627,155 @@ public object FfiConverterTypeErroAgente : FfiConverterRustBuffer<ErroAgente> {
             }
             is ErroAgente.SemReceita -> {
                 buf.putInt(2)
+                FfiConverterString.write(value.`mensagem`, buf)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+
+}
+
+
+
+
+
+/**
+ * Erros dos recursos de criação.
+ */
+sealed class ErroCriacao: kotlin.Exception() {
+    
+    class ReceitaInvalida(
+        
+        val `mensagem`: kotlin.String
+        ) : ErroCriacao() {
+        override val message
+            get() = "mensagem=${ `mensagem` }"
+    }
+    
+    class MaterialCurto(
+        
+        val `mensagem`: kotlin.String
+        ) : ErroCriacao() {
+        override val message
+            get() = "mensagem=${ `mensagem` }"
+    }
+    
+    class AjusteImpossivel(
+        
+        val `mensagem`: kotlin.String
+        ) : ErroCriacao() {
+        override val message
+            get() = "mensagem=${ `mensagem` }"
+    }
+    
+    class TonsIncompativeis(
+        
+        val `mensagem`: kotlin.String
+        ) : ErroCriacao() {
+        override val message
+            get() = "mensagem=${ `mensagem` }"
+    }
+    
+    class Motor(
+        
+        val `mensagem`: kotlin.String
+        ) : ErroCriacao() {
+        override val message
+            get() = "mensagem=${ `mensagem` }"
+    }
+    
+
+    
+
+
+    companion object ErrorHandler : UniffiRustCallStatusErrorHandler<ErroCriacao> {
+        override fun lift(error_buf: RustBuffer.ByValue): ErroCriacao = FfiConverterTypeErroCriacao.lift(error_buf)
+    }
+
+    
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeErroCriacao : FfiConverterRustBuffer<ErroCriacao> {
+    override fun read(buf: ByteBuffer): ErroCriacao {
+        
+
+        return when(buf.getInt()) {
+            1 -> ErroCriacao.ReceitaInvalida(
+                FfiConverterString.read(buf),
+                )
+            2 -> ErroCriacao.MaterialCurto(
+                FfiConverterString.read(buf),
+                )
+            3 -> ErroCriacao.AjusteImpossivel(
+                FfiConverterString.read(buf),
+                )
+            4 -> ErroCriacao.TonsIncompativeis(
+                FfiConverterString.read(buf),
+                )
+            5 -> ErroCriacao.Motor(
+                FfiConverterString.read(buf),
+                )
+            else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: ErroCriacao): ULong {
+        return when(value) {
+            is ErroCriacao.ReceitaInvalida -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`mensagem`)
+            )
+            is ErroCriacao.MaterialCurto -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`mensagem`)
+            )
+            is ErroCriacao.AjusteImpossivel -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`mensagem`)
+            )
+            is ErroCriacao.TonsIncompativeis -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`mensagem`)
+            )
+            is ErroCriacao.Motor -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`mensagem`)
+            )
+        }
+    }
+
+    override fun write(value: ErroCriacao, buf: ByteBuffer) {
+        when(value) {
+            is ErroCriacao.ReceitaInvalida -> {
+                buf.putInt(1)
+                FfiConverterString.write(value.`mensagem`, buf)
+                Unit
+            }
+            is ErroCriacao.MaterialCurto -> {
+                buf.putInt(2)
+                FfiConverterString.write(value.`mensagem`, buf)
+                Unit
+            }
+            is ErroCriacao.AjusteImpossivel -> {
+                buf.putInt(3)
+                FfiConverterString.write(value.`mensagem`, buf)
+                Unit
+            }
+            is ErroCriacao.TonsIncompativeis -> {
+                buf.putInt(4)
+                FfiConverterString.write(value.`mensagem`, buf)
+                Unit
+            }
+            is ErroCriacao.Motor -> {
+                buf.putInt(5)
                 FfiConverterString.write(value.`mensagem`, buf)
                 Unit
             }
@@ -3802,6 +4261,34 @@ public object FfiConverterSequenceTypeEnergiaTrecho: FfiConverterRustBuffer<List
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterTypeEnergiaTrecho.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeMarcador: FfiConverterRustBuffer<List<Marcador>> {
+    override fun read(buf: ByteBuffer): List<Marcador> {
+        val len = buf.getInt()
+        return List<Marcador>(len) {
+            FfiConverterTypeMarcador.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<Marcador>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeMarcador.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<Marcador>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeMarcador.write(it, buf)
         }
     }
 }
