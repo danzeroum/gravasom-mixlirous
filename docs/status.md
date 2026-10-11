@@ -1,6 +1,6 @@
 # Status dos gates
 
-Atualizado: 2026-10-08 (release assinado e lacunas da entrega instalável; Fase 14 pausada)
+Atualizado: 2026-10-11 (Gate 0 verificado: assembleDebug verde com o motor Rust no APK; camada F2/F3 em Kotlin escrita e testada no host; Gates 1–4 seguem para o aparelho)
 
 Estados:
 
@@ -407,10 +407,10 @@ Estados herdam o vocabulário acima. O plano-mestre está no arquivo `plano` na 
 
 | Fase | Estado | Falta |
 | --- | --- | --- |
-| F0 — Base | APROVADA-PARCIAL | Compilação/instalação Android não executada neste ambiente (sem Android SDK): vira verificação do dono ou de ambiente com SDK |
-| F1 — Motor Rust no Android | APROVADA-PARCIAL | Rust verificado no host (testes + clippy + golden master); cargo-ndk/APK/JNI no aparelho pendentes de SDK/NDK — roteiro do dono |
-| F2 — Análise | PENDENTE (Android) | motor Rust pronto e verificado no host; faltam Room v6, WorkManager, etiquetas/filtros em Kotlin — verificados no aparelho |
-| F3 — Criar versão (manual) | PENDENTE (Android) | render/validação/fingerprint verificados no host; tela de receita + "Refazer igual" em Kotlin pendentes |
+| F0 — Base | APROVADA-PARCIAL | **assembleDebug verde (Gate 0)**: APK debug 45 MB com applicationId com.gravasom.mixlirous; instalação lado a lado + backup no aparelho seguem para o dono |
+| F1 — Motor Rust no Android | APROVADA-PARCIAL | `.so` arm64 compilada (cargo-ndk, 12,2 MB) e DENTRO do APK (verificado por `unzip -l`); bug do build.gradle.kts (Exec × TaskProvider) corrigido; JNA adicionado; prévia A/B/fingerprint no aparelho seguem para o dono |
+| F2 — Análise | APROVADA-PARCIAL | Room v6 (mix_analysis) + MIGRATION_5_6 escritos e testados (MigracaoV6Test 3/3, Robolectric); AnaliseMixWorker com progresso/cancelamento sem etiqueta parcial; etiqueta + filtros BPM/tom na LibraryScreen; medição de tempo no aparelho pendente |
+| F3 — Criar versão (manual) | APROVADA-PARCIAL | feature/criar (CriarScreen + CriarSonsViewModel) e CriacaoWorker escritos; recusa de crossfade > 3000 ms provada no host com a mensagem da ValidationLayer; worker serializa TODOS os params (bug do workDataOf corrigido); render/fingerprint no aparelho pendentes |
 | F4 — Spike da SLM | APROVADA-PARCIAL | corpus de 80 casos + ADR-016/017 prontos e verificados no host; medições no aparelho pendentes (roteiro do dono) |
 | F5 — Agente | APROVADA-PARCIAL | kernel ReAct + callbacks Kotlin + fallback verificados no host; teste de propriedade com 1000 saídas: 0 receitas fora dos limites; telas HITL em Kotlin pendentes |
 | F6 — Criar novos sons | APROVADA-PARCIAL | 4 funções em Rust com testes (loop 20× sem estalo, mescla avisa tons incompatíveis, textura 2–8×, melhores momentos com marcadores); telas em Kotlin pendentes |
@@ -485,3 +485,40 @@ Estados herdam o vocabulário acima. O plano-mestre está no arquivo `plano` na 
 | docs/status.md completo | APROVADA | este documento |
 | APK release arm64 assinado | NÃO VERIFICADA | exige SDK/NDK; roteiro de preparo no roteiro do dono |
 | PR com resumo | APROVADA | branch relatorio/entrega-f0-f9 → main |
+
+## Gates do roteiro de aparelho (sessão de ambiente com SDK — 2026-10-11)
+
+Formato do roteiro. Ambiente: sandbox Linux 2 CPUs / 4 GB RAM / 10 GB disco,
+SDK 36 + NDK 27.2 + Rust 1.99 + cargo-ndk 4.1.2 instalados nesta sessão.
+Sem aparelho físico, sem emulador e sem KVM — Gates 1–4 no aparelho seguem o
+roteiro do dono (docs/teste-aparelho-real-mixlirous.md).
+
+### Gate 0 — Build debug mínima
+- Status: ✅ Verificado
+- Comando executado: `./gradlew --no-daemon :app:assembleDebug` (após limpeza de disco ≥ 1 GB livre, `org.gradle.jvmargs=-Xmx1536m` local)
+- Saída/resultado: `BUILD SUCCESSFUL` — `app/build/outputs/apk/debug/app-debug.apk` com **45 MB**; `unzip -l` confirma `lib/arm64-v8a/libmixlirous_mobile.so` (12.273.736 bytes), `libjnidispatch.so` (JNA/UniFFI), `libgravasom_dsp.so`, `libmp3lame.so` — só arm64 (`-PabiArm64Somente`, CI/emulador mantém x86_64)
+- Observações: (1) bug real corrigido em `core/mixengine/build.gradle.kts` — `fun rustBuildTask(...): Exec` não compila (`tasks.register` devolve `TaskProvider<Exec>`); (2) bindings UniFFI regeneradas com as 5 funções F6 (`criarLoop`, `criarTextura`, `melhoresMomentos`, `avisosDeMescla`, `mesclar`) — a versão commitada estava velha (sem F6) e o construtor virou `MixEngine.novo()` no uniffi 0.32; (3) JNA (`net.java.dev.jna:jna@aar`) faltava no módulo — `:core:mixengine` NUNCA tinha compilado no Gradle (bate com o estado NÃO VERIFICADA anterior); (4) stamp `core/mixengine/build/rust/.so-built.stamp` pula o cargo-ndk quando as `.so` já existem (passo 2.3 do roteiro); (5) APK de referência copiado para fora do sandbox.
+
+### Gate 1 — Instalação e backup
+- Status: ⚠️ Parcial (bloqueado por ambiente)
+- Comando executado: `adb devices` → *lista vazia*; sem `/dev/kvm` e sem imagem de emulador instalável (disco 10 GB)
+- Saída/resultado: nenhum aparelho/emulador disponível nesta sessão
+- Observações: dois ícones, ícone roxo, restauração `.gravasom` e paleta em claro/escuro continuam NÃO VERIFICADAS — roteiro do dono. Vira issue de acompanhamento.
+
+### Gate 2 — Motor Rust no aparelho (golden master JNI)
+- Status: ⚠️ Parcial (bloqueado por ambiente; a parte de host está verde)
+- Comando executado (parte host): `cargo run --example print_receita` (temporário, apagado após o uso) + `cargo test` do workspace registrado em F1
+- Saída/resultado (host): receita padrão JSON validada; mutações da tela (duração 45 s, crossfade 1200 ms, 8 blocos) passam na `validar_receita`; **crossfade 5000 ms → recusado com "Receita inválida: Validation failed: crossfade_ms deve estar entre 0 e 3000; recebido 5000"**
+- Observações: prévia A/B, fingerprint < 0,05 no logcat (tag `FINGERPRINT`) e tempo de remix de 5 min (alvo ≤ 90 s) seguem para o aparelho.
+
+### Gate 3 — Análise
+- Status: ⚠️ Parcial (código escrito + testes de Room no host; medição no aparelho pendente)
+- Comando executado: `./gradlew --no-daemon :core:data:testDebugUnitTest`
+- Saída/resultado: `BUILD SUCCESSFUL` — 21 testes de core/data verdes, incluindo `MigracaoV6Test` (3/3): migração v5→v6 preserva gravações, `mix_analysis` nasce vazia, upsert substitui, CASCADE ao excluir, etiqueta **"120 BPM · Lá menor"** formatada pela `MixAnalysisEntity`
+- Observações: `AnaliseMixWorker` (progresso por ticker de 1 s; cancelar no meio não salva nada — upsert único no fim; `runCatching` em toda chamada UniFFI com erro + stacktrace na saída); LibraryScreen ganhou etiqueta por item e filtros de BPM (≤90 / 90–130 / >130) e tom. Tempo de análise de 5 min e validação contra DAW/tuner seguem para o aparelho.
+
+### Gate 4 — Criar versão (manual)
+- Status: ⚠️ Parcial (código escrito + validação provada no host; render no aparelho pendente)
+- Comando executado: `./gradlew --no-daemon :core:service:testDebugUnitTest`
+- Saída/resultado: `BUILD SUCCESSFUL` — 44 testes verdes; `CriacaoWorkerVetorTest` (4/4) achou e consertou bug real: fingerprint com LUFS null era decodificado como -1.0 (sentinela) e corromperia a distância do "Refazer igual" — agora null via NaN
+- Observações: o bug do `CriarSonsViewModel` do roteiro (params que não chegavam ao worker) foi corrigido POR CONSTRUÇÃO — `workDataOf` leva `KEY_RECEITA_JSON`, `KEY_MARCADORES_MS` (já em ms, nome explícito), compassos, fator e fingerprint anterior; o worker revalida a receita (`validarReceita`) antes de qualquer render e a gravação original é só lida (SHA-256 intacto por construção). Render novo, SHA-256 conferido no cofre e "Refazer igual" < 0,05 seguem para o aparelho.
