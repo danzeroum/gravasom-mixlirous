@@ -28,6 +28,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.gravasom.feature.criar.CriarScreen
 import com.gravasom.feature.enhance.EnhanceScreen
 import com.gravasom.feature.library.LibraryScreen
 import com.gravasom.feature.record.RecordScreen
@@ -84,7 +85,10 @@ fun GravasomApp(
                     onOpenLibrary = { nav.goTo(MainActivity.ROUTE_LIBRARY) },
                 ) }
             composable(MainActivity.ROUTE_LIBRARY) {
-                LibraryScreen(onOpenEnhance = { id -> nav.navigate("melhorar/$id") })
+                LibraryScreen(
+                    onOpenEnhance = { id -> nav.navigate("melhorar/$id") },
+                    onOpenCriar = { id -> nav.navigate("criar/$id") },
+                )
             }
             composable(MainActivity.ROUTE_SETTINGS) { SettingsScreen(onOpenNumbers = { nav.navigate(MainActivity.ROUTE_NUMBERS) }) }
             composable(MainActivity.ROUTE_NUMBERS) { NumbersScreen() }
@@ -92,6 +96,10 @@ fun GravasomApp(
                 MainActivity.ROUTE_ENHANCE,
                 arguments = listOf(navArgument("recordingId") { type = NavType.LongType }),
             ) { EnhanceScreen(onDone = { nav.popBackStack() }) }
+            composable(
+                MainActivity.ROUTE_CRIAR,
+                arguments = listOf(navArgument("recordingId") { type = NavType.LongType }),
+            ) { CriarScreen(onDone = { nav.popBackStack() }) }
         }
     }
 }

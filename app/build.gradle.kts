@@ -19,7 +19,12 @@ android {
         versionCode = System.getenv("GRAVASOM_VERSION_CODE")?.toIntOrNull() ?: version.getProperty("versionCode").toInt()
         versionName = System.getenv("GRAVASOM_VERSION_NAME")?.removePrefix("v") ?: version.getProperty("versionName")
         // Aparelhos reais (arm64) e o emulador do CI (x86_64). Reduz o APK; x86/armv7 de 32 bits ficam de fora.
-        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+        val abisNativas = if (providers.gradleProperty("abiArm64Somente").isPresent) {
+            listOf("arm64-v8a")
+        } else {
+            listOf("arm64-v8a", "x86_64")
+        }
+        ndk { abiFilters += abisNativas }
     }
     signingConfigs {
         // Keystore de DEBUG fixo e publico (senha padrao "android"): o APK baixado da CI atualiza por cima do anterior.
@@ -76,7 +81,9 @@ dependencies {
     implementation(project(":feature:player"))
     implementation(project(":feature:settings"))
     implementation(project(":feature:enhance"))
+    implementation(project(":feature:criar"))
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)

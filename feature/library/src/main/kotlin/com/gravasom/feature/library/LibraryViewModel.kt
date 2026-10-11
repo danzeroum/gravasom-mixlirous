@@ -4,6 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gravasom.core.data.db.MixAnalysisEntity
+import com.gravasom.core.data.db.MixAnalysisStore
 import com.gravasom.core.data.metrics.UsageMetrics
 import com.gravasom.core.domain.metrics.ShareChannel
 import com.gravasom.core.domain.metrics.UsageEventType
@@ -41,6 +43,7 @@ class LibraryViewModel @Inject constructor(
     private val files: RecordingFiles,
     private val metrics: UsageMetrics,
     private val joins: JoinService,
+    private val mixStore: MixAnalysisStore,
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
@@ -56,11 +59,49 @@ class LibraryViewModel @Inject constructor(
         .map { TagFilter.available(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
 
+    // ——— Analise musical (F2): etiqueta "120 BPM · Lá menor" + filtros de BPM/tom ———
+
+    /** Analises por id de gravacao (null/ausente = ainda não analisada). */
+    val mixAnalises: StateFlow<Map<Long, MixAnalysisEntity>> = mixStore.observeAll()
+        .map { lista -> lista.associateBy { it.recordingId } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyMap())
+
+    private val _filtroBpm = MutableStateFlow<BpmFaixa?>(null)
+    val filtroBpm: StateFlow<BpmFaixa?> = _filtroBpm
+
+    private val _filtroTom = MutableStateFlow<String?>(null)
+    val filtroTom: StateFlow<String?> = _filtroTom
+
+    /** Tons detectados na biblioteca (para o filtro). */
+    val tomsDisponiveis: StateFlow<List<String>> = mixAnalises
+        .map { m -> m.values.mapNotNull { it.rotuloTom }.distinct().sorted() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
+
     val recordings: StateFlow<List<Recording>> = combine(
         _query.flatMapLatest { q -> if (q.isBlank()) ListRecordings(repo)() else SearchRecordings(repo)(q.trim()) },
         _selectedTags,
-    ) { list, tags -> TagFilter.apply(list, tags) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
+        _filtroBpm,
+        _filtroTom,
+        mixAnalises,
+    ) { list, tags, bpm, tom, analises ->
+        TagFilter.apply(list, tags).filter { r ->
+            val analise = analises[r.id]
+            (bpm?.contem(analise?.bpm) ?: true) && (tom?.let { it == analise?.rotuloTom } ?: true)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
+
+    fun setFiltroBpm(faixa: BpmFaixa?) {
+        _filtroBpm.value = faixa
+    }
+
+    fun setFiltroTom(tom: String?) {
+        _filtroTom.value = tom
+    }
+
+    fun clearMixFiltros() {
+        _filtroBpm.value = null
+        _filtroTom.value = null
+    }
 
     fun toggleTag(tag: String) {
         _selectedTags.value = _selectedTags.value.let { if (tag in it) it - tag else it + tag }
@@ -118,5 +159,19 @@ class LibraryViewModel @Inject constructor(
 
     private companion object {
         const val STOP_TIMEOUT_MS = 5_000L
+    }
+}
+
+/** Faixas do filtro de BPM (Gate 3). Sem análise, a gravação não entra na faixa escolhida. */
+enum class BpmFaixa {
+    LENTA,
+    MEDIA,
+    RAPIDA,
+    ;
+
+    fun contem(bpm: Float?): Boolean = when (this) {
+        LENTA -> bpm != null && bpm <= 90f
+        MEDIA -> bpm != null && bpm > 90f && bpm <= 130f
+        RAPIDA -> bpm != null && bpm > 130f
     }
 }

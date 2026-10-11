@@ -70,6 +70,7 @@ import kotlinx.coroutines.withContext
 fun LibraryScreen(
     onOpenEnhance: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    onOpenCriar: (Long) -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel(),
     playerViewModel: PlayerViewModel = hiltViewModel(),
 ) {
@@ -77,6 +78,10 @@ fun LibraryScreen(
     val query by viewModel.query.collectAsStateWithLifecycle()
     val availableTags by viewModel.availableTags.collectAsStateWithLifecycle()
     val selectedTags by viewModel.selectedTags.collectAsStateWithLifecycle()
+    val mixAnalises by viewModel.mixAnalises.collectAsStateWithLifecycle()
+    val filtroBpm by viewModel.filtroBpm.collectAsStateWithLifecycle()
+    val filtroTom by viewModel.filtroTom.collectAsStateWithLifecycle()
+    val tomsDisponiveis by viewModel.tomsDisponiveis.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val player = rememberPlayer()
     var currentId by remember { mutableStateOf<Long?>(null) }
@@ -88,11 +93,13 @@ fun LibraryScreen(
         PlayerSlot({ currentId }, { currentId = it }),
         onRename = { renaming = it },
         onEnhance = onOpenEnhance,
+        onCriar = onOpenCriar,
     )
     Box(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             SearchField(query, viewModel::setQuery)
             TagFilterRow(availableTags, selectedTags, viewModel::toggleTag)
+            MixFilterRow(filtroBpm, filtroTom, tomsDisponiveis, viewModel::setFiltroBpm, viewModel::setFiltroTom)
             SelectionBar(
                 selecao = selecao,
                 onJuntar = { confirmandoJuncao = true },
@@ -105,6 +112,7 @@ fun LibraryScreen(
                     currentId,
                     actions,
                     selecao,
+                    mixAnalises.mapValues { it.value.etiqueta ?: "" },
                 ) { r ->
                     selecao = if (r.id in selecao.map { it.id }) selecao.filterNot { it.id == r.id } else selecao + r
                 }
@@ -243,6 +251,7 @@ private fun rememberRowActions(
     slot: PlayerSlot,
     onRename: (Recording) -> Unit,
     onEnhance: (Long) -> Unit,
+    onCriar: (Long) -> Unit,
 ): RowActions {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -269,6 +278,7 @@ private fun rememberRowActions(
             }
         },
         onEnhance = { r -> onEnhance(r.id) },
+        onCriar = { r -> onCriar(r.id) },
         onRename = onRename,
         onFavorite = viewModel::toggleFavorite,
         onShare = { r -> scope.launch { runCatching { viewModel.shareIntent(r) }.onSuccess(context::startActivity) } },
@@ -323,6 +333,7 @@ private suspend fun openAndPlay(viewModel: LibraryViewModel, player: PlayerContr
 private data class RowActions(
     val onPlay: (Recording) -> Unit,
     val onEnhance: (Recording) -> Unit,
+    val onCriar: (Recording) -> Unit,
     val onRename: (Recording) -> Unit,
     val onFavorite: (Recording) -> Unit,
     val onShare: (Recording) -> Unit,
@@ -357,6 +368,7 @@ private fun RecordingList(
     playingId: Long?,
     actions: RowActions,
     selecao: List<Recording>,
+    etiquetas: Map<Long, String> = emptyMap(),
     onToggleSelecao: (Recording) -> Unit,
 ) {
     if (items.isEmpty()) {
@@ -381,8 +393,57 @@ private fun RecordingList(
     }
     LazyColumn(Modifier.fillMaxSize().testTag("lista_gravacoes")) {
         items(items, key = { it.id }) { r ->
-            RecordingRow(r, playing = r.id == playingId, actions, selecao, onToggleSelecao)
+            RecordingRow(r, playing = r.id == playingId, actions, selecao, etiquetas[r.id], onToggleSelecao)
             HorizontalDivider()
+        }
+    }
+}
+
+/** Filtros da análise musical (F2/Gate 3): faixas de BPM e tons detectados. */
+@Composable
+private fun MixFilterRow(
+    filtroBpm: BpmFaixa?,
+    filtroTom: String?,
+    toms: List<String>,
+    onBpm: (BpmFaixa?) -> Unit,
+    onTom: (String?) -> Unit,
+) {
+    LazyRow(
+        modifier = Modifier.fillMaxWidth().testTag("filtro_mix"),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item {
+            FilterChip(
+                selected = filtroBpm == BpmFaixa.LENTA,
+                onClick = { onBpm(if (filtroBpm == BpmFaixa.LENTA) null else BpmFaixa.LENTA) },
+                label = { Text(stringResource(R.string.library_bpm_lenta)) },
+                modifier = Modifier.testTag("filtro_bpm_lenta"),
+            )
+        }
+        item {
+            FilterChip(
+                selected = filtroBpm == BpmFaixa.MEDIA,
+                onClick = { onBpm(if (filtroBpm == BpmFaixa.MEDIA) null else BpmFaixa.MEDIA) },
+                label = { Text(stringResource(R.string.library_bpm_media)) },
+                modifier = Modifier.testTag("filtro_bpm_media"),
+            )
+        }
+        item {
+            FilterChip(
+                selected = filtroBpm == BpmFaixa.RAPIDA,
+                onClick = { onBpm(if (filtroBpm == BpmFaixa.RAPIDA) null else BpmFaixa.RAPIDA) },
+                label = { Text(stringResource(R.string.library_bpm_rapida)) },
+                modifier = Modifier.testTag("filtro_bpm_rapida"),
+            )
+        }
+        items(toms, key = { it }) { tom ->
+            FilterChip(
+                selected = filtroTom == tom,
+                onClick = { onTom(if (filtroTom == tom) null else tom) },
+                label = { Text(tom) },
+                modifier = Modifier.testTag("filtro_tom_${tom.replace(' ', '_')}"),
+            )
         }
     }
 }
@@ -393,6 +454,7 @@ private fun RecordingRow(
     playing: Boolean,
     actions: RowActions,
     selecao: List<Recording>,
+    etiqueta: String? = null,
     onToggleSelecao: (Recording) -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
@@ -426,6 +488,15 @@ private fun RecordingRow(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.testTag("duracao_item"),
             )
+            // Etiqueta da análise musical (F2): "120 BPM · Lá menor".
+            if (!etiqueta.isNullOrBlank()) {
+                Text(
+                    etiqueta,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.testTag("etiqueta_mix_item"),
+                )
+            }
             if (r.tags.isNotEmpty()) {
                 Text(
                     r.tags.joinToString("  ") { "#$it" },
@@ -447,6 +518,7 @@ private fun RecordingRow(
 @Composable
 private fun RowMenu(expanded: Boolean, dismiss: () -> Unit, r: Recording, a: RowActions) {
     DropdownMenu(expanded = expanded, onDismissRequest = dismiss) {
+        MenuItem(R.string.library_action_criar, "menu_criar_versao") { dismiss(); a.onCriar(r) }
         MenuItem(R.string.library_action_enhance, "menu_melhorar_som") { dismiss(); a.onEnhance(r) }
         MenuItem(R.string.library_action_share, "menu_compartilhar") { dismiss(); a.onShare(r) }
         MenuItem(R.string.library_action_save_as, "menu_salvar_em") { dismiss(); a.onSaveAs(r) }

@@ -40,4 +40,8 @@
     <string name="library_join_ok">Junção criada: %1$s</string>
     <string name="library_join_failed">Não foi possível juntar.</string>
     <string name="library_select_item">Selecionar gravação</string>
+    <string name="library_action_criar">Criar versão</string>
+    <string name="library_bpm_lenta">≤ 90 BPM</string>
+    <string name="library_bpm_media">90–130 BPM</string>
+    <string name="library_bpm_rapida">&gt; 130 BPM</string>
 </resources>

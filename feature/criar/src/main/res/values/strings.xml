@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="criar_titulo">Criar versão</string>
+    <string name="criar_modo">Modo</string>
+    <string name="criar_modo_remix">Remix</string>
+    <string name="criar_modo_loop">Loop</string>
+    <string name="criar_modo_textura">Textura</string>
+    <string name="criar_modo_melhores">Melhores</string>
+    <string name="criar_duracao">Duração alvo (segundos)</string>
+    <string name="criar_compassos">Compassos</string>
+    <string name="criar_fator">Fator da textura: %1$d×</string>
+    <string name="criar_blocos">Blocos por batida: %1$d</string>
+    <string name="criar_crossfade">Crossfade: %1$d ms (limite 3000)</string>
+    <string name="criar_destino">Destino</string>
+    <string name="criar_acao">Criar versão</string>
+    <string name="criar_refazer">Refazer igual</string>
+    <string name="criar_renderizando">Renderizando…</string>
+    <string name="criar_distancia">Distância do fingerprint: %1$.4f (mesma receita: &lt; 0,05)</string>
+    <string name="criar_voltar">Voltar</string>
+</resources>

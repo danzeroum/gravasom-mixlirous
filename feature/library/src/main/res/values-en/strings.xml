@@ -40,4 +40,8 @@
     <string name="library_join_ok">Join created: %1$s</string>
     <string name="library_join_failed">Could not join.</string>
     <string name="library_select_item">Select recording</string>
+    <string name="library_action_criar">Create version</string>
+    <string name="library_bpm_lenta">≤ 90 BPM</string>
+    <string name="library_bpm_media">90–130 BPM</string>
+    <string name="library_bpm_rapida">&gt; 130 BPM</string>
 </resources>
