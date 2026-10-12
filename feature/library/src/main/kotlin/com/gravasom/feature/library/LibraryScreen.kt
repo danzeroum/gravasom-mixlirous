@@ -76,6 +76,7 @@ fun LibraryScreen(
     onOpenEnhance: (Long) -> Unit,
     modifier: Modifier = Modifier,
     onOpenCriar: (Long) -> Unit = {},
+    onTranscrever: (Long) -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel(),
     playerViewModel: PlayerViewModel = hiltViewModel(),
 ) {
@@ -103,6 +104,7 @@ fun LibraryScreen(
         onRename = { renaming = it },
         onEnhance = onOpenEnhance,
         onCriar = onOpenCriar,
+        onTranscrever = onTranscrever,
     )
     Box(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -258,6 +260,7 @@ private fun rememberRowActions(
     onRename: (Recording) -> Unit,
     onEnhance: (Long) -> Unit,
     onCriar: (Long) -> Unit,
+    onTranscrever: (Long) -> Unit,
 ): RowActions {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -285,6 +288,7 @@ private fun rememberRowActions(
         },
         onEnhance = { r -> onEnhance(r.id) },
         onCriar = { r -> onCriar(r.id) },
+        onTranscrever = { r -> onTranscrever(r.id) },
         onRename = onRename,
         onFavorite = viewModel::toggleFavorite,
         onShare = { r -> scope.launch { runCatching { viewModel.shareIntent(r) }.onSuccess(context::startActivity) } },
@@ -340,6 +344,7 @@ private data class RowActions(
     val onPlay: (Recording) -> Unit,
     val onEnhance: (Recording) -> Unit,
     val onCriar: (Recording) -> Unit,
+    val onTranscrever: (Recording) -> Unit,
     val onRename: (Recording) -> Unit,
     val onFavorite: (Recording) -> Unit,
     val onShare: (Recording) -> Unit,
@@ -525,6 +530,7 @@ private fun RecordingRow(
 @Composable
 private fun RowMenu(expanded: Boolean, dismiss: () -> Unit, r: Recording, a: RowActions) {
     DropdownMenu(expanded = expanded, onDismissRequest = dismiss) {
+        MenuItem(R.string.library_action_transcrever, "menu_transcrever") { dismiss(); a.onTranscrever(r) }
         MenuItem(R.string.library_action_criar, "menu_criar_versao") { dismiss(); a.onCriar(r) }
         MenuItem(R.string.library_action_enhance, "menu_melhorar_som") { dismiss(); a.onEnhance(r) }
         MenuItem(R.string.library_action_share, "menu_compartilhar") { dismiss(); a.onShare(r) }

@@ -8,6 +8,7 @@ import com.gravasom.core.ui.theme.GravasomDarkColors
 import com.gravasom.core.ui.theme.GravasomExtraLight
 import com.gravasom.core.ui.theme.GravasomLightColors
 import com.gravasom.core.ui.theme.MixlirousDarkColors
+import com.gravasom.core.ui.theme.MixlirousExtraLight
 import com.gravasom.core.ui.theme.MixlirousLightColors
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -82,7 +83,8 @@ class TemaGeradoTest {
     }
 
     @Test
-    fun `tema inteiro no android 11 com cores do sistema usa a gravasom`() {
+    fun `tema inteiro no android 11 com cores do sistema cai na paleta padrao mixlirous`() {
+        // Contrato do Paleta.kt: SISTEMA não existe antes do Android 12 → efetiva(30) == PADRAO == MIXLIROUS.
         var primario = Color.Unspecified
         var gravando = Color.Unspecified
         compose.setContent {
@@ -92,8 +94,8 @@ class TemaGeradoTest {
             }
         }
         compose.waitForIdle()
-        assertEquals(GravasomLightColors.primary, primario)
-        assertEquals(GravasomExtraLight.gravando.container, gravando)
+        assertEquals(MixlirousLightColors.primary, primario)
+        assertEquals(MixlirousExtraLight.gravando.container, gravando)
     }
 
     @Test

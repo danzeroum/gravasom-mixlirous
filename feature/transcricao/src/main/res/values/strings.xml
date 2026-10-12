@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="transcricao_titulo">Transcrição</string>
+    <string name="transcricao_consentimento_titulo">Modelo de transcrição</string>
+    <string name="transcricao_consentimento_texto">A transcrição acontece 100% no aparelho — seu áudio nunca sai daqui. O modelo de IA (%1$s) precisa ser baixado uma única vez: este download é a ÚNICA conexão de rede do app.</string>
+    <string name="transcricao_consentimento_origem">Origem: %1$s</string>
+    <string name="transcricao_consentimento_sha">SHA-256: %1$s</string>
+    <string name="transcricao_consentimento_aceitar">Baixar modelo (%1$s)</string>
+    <string name="transcricao_consentimento_importar">Importar arquivo do modelo…</string>
+    <string name="transcricao_consentimento_recusar">Não agora</string>
+    <string name="transcricao_baixando">Baixando modelo… %1$d%%</string>
+    <string name="transcricao_pronto">Modelo pronto: %1$s</string>
+    <string name="transcricao_pronto_tamanho">SHA-256 verificado: %1$s</string>
+    <string name="transcricao_timestamps">Mostrar marcas de tempo [mm:ss]</string>
+    <string name="transcricao_botao_transcrever">Transcrever</string>
+    <string name="transcricao_preparando">Preparando áudio…</string>
+    <string name="transcricao_transcrevendo">Transcrevendo… %1$s</string>
+    <string name="transcricao_cancelar">Cancelar</string>
+    <string name="transcricao_sucesso_resumo">Resumo estruturado (editável)</string>
+    <string name="transcricao_sucesso_bruto">Transcrição bruta</string>
+    <string name="transcricao_sucesso_metrica">Inferência: %1$s · %2$d tokens · modelo %3$s</string>
+    <string name="transcricao_salvar">Salvar como anotação</string>
+    <string name="transcricao_salvo">Anotação salva na gravação</string>
+    <string name="transcricao_erro">Erro na transcrição</string>
+    <string name="transcricao_tentar_novamente">Tentar novamente</string>
+    <string name="transcricao_fechar">Fechar</string>
+    <string name="transcricao_remover_modelo_menu">Remover modelo</string>
+    <string name="transcricao_remover_modelo_titulo">Remover modelo?</string>
+    <string name="transcricao_remover_modelo_texto">O modelo baixado (ou importado) será apagado do aparelho. Para transcrever de novo, será preciso baixar/importar outra vez (protocolo de medição ADR-016).</string>
+    <string name="transcricao_gravacao_ausente">Gravação não encontrada</string>
+</resources>

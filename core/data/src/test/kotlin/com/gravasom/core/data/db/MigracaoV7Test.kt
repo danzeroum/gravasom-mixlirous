@@ -95,6 +95,7 @@ class MigracaoV7Test {
         .addMigrations(
             GravasomDatabase.MIGRATION_1_2, GravasomDatabase.MIGRATION_2_3, GravasomDatabase.MIGRATION_3_4,
             GravasomDatabase.MIGRATION_4_5, GravasomDatabase.MIGRATION_5_6, GravasomDatabase.MIGRATION_6_7,
+            GravasomDatabase.MIGRATION_7_8,
         )
         .allowMainThreadQueries()
         .build().also { db = it }

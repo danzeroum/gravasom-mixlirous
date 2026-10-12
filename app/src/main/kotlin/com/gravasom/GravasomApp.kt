@@ -34,6 +34,7 @@ import com.gravasom.feature.library.LibraryScreen
 import com.gravasom.feature.record.RecordScreen
 import com.gravasom.feature.settings.NumbersScreen
 import com.gravasom.feature.settings.SettingsScreen
+import com.gravasom.feature.transcricao.TranscricaoScreen
 
 private data class Tab(val route: String, val label: Int, val icon: ImageVector, val tag: String)
 
@@ -88,6 +89,7 @@ fun GravasomApp(
                 LibraryScreen(
                     onOpenEnhance = { id -> nav.navigate("melhorar/$id") },
                     onOpenCriar = { id -> nav.navigate("criar/$id") },
+                    onTranscrever = { id -> nav.navigate("transcrever/$id") },
                 )
             }
             composable(MainActivity.ROUTE_SETTINGS) { SettingsScreen(onOpenNumbers = { nav.navigate(MainActivity.ROUTE_NUMBERS) }) }
@@ -100,6 +102,13 @@ fun GravasomApp(
                 MainActivity.ROUTE_CRIAR,
                 arguments = listOf(navArgument("recordingId") { type = NavType.LongType }),
             ) { CriarScreen(onDone = { nav.popBackStack() }) }
+            composable(
+                MainActivity.ROUTE_TRANSCRICAO,
+                arguments = listOf(navArgument("recordingId") { type = NavType.LongType }),
+            ) { entry ->
+                val recordingId = entry.arguments?.getLong("recordingId") ?: 0L
+                TranscricaoScreen(recordingId = recordingId, onDone = { nav.popBackStack() })
+            }
         }
     }
 }

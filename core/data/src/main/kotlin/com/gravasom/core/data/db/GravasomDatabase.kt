@@ -10,9 +10,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 @Database(
     entities = [
         RecordingEntity::class, EditProjectEntity::class, UsageEventEntity::class, MarkerEntity::class,
-        RecordingAnalysisEntity::class, MixAnalysisEntity::class,
+        RecordingAnalysisEntity::class, MixAnalysisEntity::class, RecordingAnnotationEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = false,
 )
 abstract class GravasomDatabase : RoomDatabase() {
@@ -22,6 +22,7 @@ abstract class GravasomDatabase : RoomDatabase() {
     abstract fun markerDao(): MarkerDao
     abstract fun analysisDao(): AnalysisDao
     abstract fun mixAnalysisDao(): MixAnalysisDao
+    abstract fun annotationDao(): AnnotationDao
 
     companion object {
         /** v1 -> v2: projeto de edicao nao destrutiva (ADR-008). Nao altera a tabela `recordings`. */
@@ -113,9 +114,29 @@ abstract class GravasomDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v7 -> v8 (F7/Transcrição): anotações de transcrição por gravação (whisper.cpp local, ADR-013/017).
+         * Tabela NOVA — não toca em `recordings` nem em qualquer linha existente; CASCADE ao excluir a gravação.
+         */
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `recording_annotations` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `recordingId` INTEGER NOT NULL, " +
+                        "`createdAtMillis` INTEGER NOT NULL, `titulo` TEXT NOT NULL, `texto` TEXT NOT NULL, `raw` TEXT NOT NULL, " +
+                        "`duracaoInferenciaMs` INTEGER NOT NULL, `modelo` TEXT NOT NULL, `idioma` TEXT NOT NULL, `tokens` INTEGER NOT NULL, " +
+                        "FOREIGN KEY(`recordingId`) REFERENCES `recordings`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_recording_annotations_recordingId` " +
+                        "ON `recording_annotations` (`recordingId`)",
+                )
+            }
+        }
+
         fun create(context: Context): GravasomDatabase =
             Room.databaseBuilder(context, GravasomDatabase::class.java, "gravasom.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 .build()
     }
 }
