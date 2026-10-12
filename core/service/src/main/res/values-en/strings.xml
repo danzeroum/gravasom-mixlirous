@@ -16,4 +16,7 @@
     <string name="widget_record">Record</string>
     <string name="widget_marker">Mark</string>
     <string name="widget_marker_idle">No recording in progress to mark</string>
+    <!-- F8: third widget target and "Criar versão" tile -->
+    <string name="widget_criar">Create version</string>
+    <string name="tile_criar">Create version</string>
 </resources>

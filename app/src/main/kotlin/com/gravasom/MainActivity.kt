@@ -7,13 +7,17 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.gravasom.core.data.metrics.UsageMetrics
+import com.gravasom.core.data.preferences.PreferencesRepository
 import com.gravasom.core.domain.metrics.UsageEventType
 import com.gravasom.core.service.library.AudioImporter
 import com.gravasom.core.service.library.ImportResult
 import com.gravasom.core.ui.GravasomTheme
+import com.gravasom.core.ui.Paleta
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -23,6 +27,7 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var importer: AudioImporter
     @Inject lateinit var metrics: UsageMetrics
+    @Inject lateinit var prefs: PreferencesRepository
 
     private val destination = mutableStateOf<String?>(null)
     private val autoStart = mutableStateOf(false)
@@ -30,7 +35,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            GravasomTheme {
+            // F8: a paleta escolhida em Ajustes › Aparência vale para o app inteiro.
+            val paletaId by prefs.palette.collectAsStateWithLifecycle(
+                initialValue = PreferencesRepository.PALETA_PADRAO_ID,
+            )
+            GravasomTheme(paleta = Paleta.fromId(paletaId)) {
                 GravasomApp(
                     destination = destination.value,
                     onDestinationHandled = { destination.value = null },
@@ -50,11 +59,12 @@ class MainActivity : ComponentActivity() {
         handle(intent)
     }
 
-    /** Entradas externas: atalhos do launcher e audio recebido de outros apps (ACTION_SEND). */
+    /** Entradas externas: atalhos do launcher, tile/widget do F8 e audio recebido de outros apps (ACTION_SEND). */
     private fun handle(intent: Intent?) {
         when (intent?.action) {
             ACTION_QUICK_RECORD -> { destination.value = ROUTE_RECORD; autoStart.value = true }
             ACTION_SHOW_LIBRARY -> destination.value = ROUTE_LIBRARY
+            ACTION_QUICK_CRIAR -> destination.value = ROUTE_LIBRARY // Criar (F6/F8) precisa da gravação escolhida na lista
             Intent.ACTION_SEND -> if (intent.type?.startsWith("audio/") == true) receiveAudio(streamOf(intent))
         }
     }
@@ -72,6 +82,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             val message = when (importer.import(uri)) {
                 is ImportResult.Imported -> { destination.value = ROUTE_LIBRARY; com.gravasom.feature.library.R.string.library_import_ok }
+                is ImportResult.Duplicata -> com.gravasom.feature.library.R.string.library_import_duplicata
                 ImportResult.Unsupported -> com.gravasom.feature.library.R.string.library_import_unsupported
                 ImportResult.Invalid -> com.gravasom.feature.library.R.string.library_import_invalid
             }
@@ -82,6 +93,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val ACTION_QUICK_RECORD = "com.gravasom.action.QUICK_RECORD"
         const val ACTION_SHOW_LIBRARY = "com.gravasom.action.SHOW_LIBRARY"
+        const val ACTION_QUICK_CRIAR = "com.gravasom.action.QUICK_CRIAR"
         const val ROUTE_RECORD = "gravar"
         const val ROUTE_LIBRARY = "gravacoes"
         const val ROUTE_SETTINGS = "ajustes"

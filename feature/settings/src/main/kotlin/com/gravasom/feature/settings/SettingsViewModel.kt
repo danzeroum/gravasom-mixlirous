@@ -36,6 +36,8 @@ data class SettingsUiState(
     val numbersOptIn: Boolean = false,
     /** Preset de formato escolhido; null = personalizado. */
     val preset: FormatPreset? = null,
+    /** Paleta de cores (F8, "Aparência"): id bruto da preferência. */
+    val paletteId: String = PreferencesRepository.PALETA_PADRAO_ID,
 )
 
 /** Contadores de uso (so existem com opt-in) mais as estatisticas da biblioteca (sempre disponiveis, locais). */
@@ -75,6 +77,7 @@ class SettingsViewModel @Inject constructor(
     val settings: StateFlow<SettingsUiState> = combine(
         prefs.format, prefs.bitrate, prefs.privateVault, prefs.telemetryOptIn, prefs.preset,
     ) { f, b, p, n, preset -> SettingsUiState(f, b, p, n, preset) }
+        .combine(prefs.palette) { s, paleta -> s.copy(paletteId = paleta) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), SettingsUiState())
 
     private val counters = combine(
@@ -95,6 +98,9 @@ class SettingsViewModel @Inject constructor(
     fun setBitrate(kbps: Int) = viewModelScope.launch { prefs.setBitrate(kbps) }
     fun setPreset(preset: FormatPreset) = viewModelScope.launch { prefs.setPreset(preset) }
     fun setPrivate(enabled: Boolean) = viewModelScope.launch { prefs.setPrivateVault(enabled) }
+
+    /** F8: troca a paleta em Ajustes › Aparência; o tema reage na hora. */
+    fun setPalette(id: String) = viewModelScope.launch { prefs.setPalette(id) }
     fun setNumbersOptIn(enabled: Boolean) = viewModelScope.launch { prefs.setTelemetryOptIn(enabled) }
 
     private val _backupFase = MutableStateFlow(BackupFase.PARADO)

@@ -2,6 +2,7 @@ package com.gravasom.core.data.db
 
 import com.gravasom.core.domain.audio.RecordingFormat
 import com.gravasom.core.domain.model.Recording
+import com.gravasom.core.domain.model.RecordingOrigin
 import com.gravasom.core.domain.preset.FormatPreset
 
 fun RecordingEntity.toDomain(): Recording = Recording(
@@ -18,6 +19,9 @@ fun RecordingEntity.toDomain(): Recording = Recording(
     deletedAtMillis = deletedAtMillis,
     publishedUri = publishedUri,
     preset = FormatPreset.fromId(preset),
+    sha256 = sha256,
+    origin = RecordingOrigin.fromId(origin), // nulo (linhas antigas) = gravada no app
+    artist = artist,
 )
 
 fun Recording.toEntity(): RecordingEntity = RecordingEntity(
@@ -34,4 +38,7 @@ fun Recording.toEntity(): RecordingEntity = RecordingEntity(
     deletedAtMillis = deletedAtMillis,
     publishedUri = publishedUri,
     preset = preset?.id,
+    sha256 = sha256,
+    origin = origin?.id,
+    artist = artist,
 )

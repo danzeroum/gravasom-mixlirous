@@ -29,6 +29,9 @@ class FakeRecordingRepository : RecordingRepository {
 
     override suspend fun getById(id: Long): Recording? = items.value.firstOrNull { it.id == id }
 
+    override suspend fun bySha256(sha256: String): Recording? =
+        items.value.firstOrNull { it.sha256 == sha256 }
+
     override suspend fun insert(recording: Recording): Long {
         val id = (items.value.maxOfOrNull { it.id } ?: 0L) + 1
         items.value = items.value + recording.copy(id = id)

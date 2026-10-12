@@ -20,7 +20,14 @@ data class Recording(
     val publishedUri: String? = null,
     /** Preset de formato escolhido quando a gravacao foi feita (define os efeitos ligados por padrao); null = antiga/importada. */
     val preset: FormatPreset? = null,
+    /** SHA-256 do arquivo; null nas gravacoes anteriores a v7. Importacao usa para nao duplicar arquivo igual. */
+    val sha256: String? = null,
+    /** De onde veio o audio (null nas anteriores a v7 = gravada no app). */
+    val origin: RecordingOrigin? = null,
+    /** Artista/metadados extraidos na importacao (null quando gravada no app ou sem metadado). */
+    val artist: String? = null,
 ) {
     val isDeleted: Boolean get() = deletedAtMillis != null
     val isPrivate: Boolean get() = path.contains("/vault/")
+    val isImported: Boolean get() = origin == RecordingOrigin.IMPORTED
 }

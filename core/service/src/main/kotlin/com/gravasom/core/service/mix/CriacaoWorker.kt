@@ -8,6 +8,7 @@ import com.gravasom.core.audio.engine.WavHeaderWriter
 import com.gravasom.core.data.db.MixAnalysisStore
 import com.gravasom.core.domain.repository.RecordingRepository
 import com.gravasom.core.mixengine.MotorMixlirous
+import com.gravasom.core.mixengine.motor.DecisaoTons
 import com.gravasom.core.mixengine.motor.FingerprintAudio
 import com.gravasom.core.mixengine.motor.Marcador
 import com.gravasom.core.service.RecordingStorage
@@ -39,6 +40,15 @@ import java.io.FileOutputStream
  * - Fingerprint do resultado vai na saída (e em logcat, tag FINGERPRINT);
  *   com [KEY_FINGERPRINT_ANTERIOR] a distância "Refazer igual" < 0,05 é
  *   calculada pelo próprio motor ([distanciaFingerprint]).
+ *
+ * F6 (Loops/Texturas/Mescla/Melhores): o modo vem em [KEY_MODO] (ver
+ * [CriacaoTipo]); MESCLA decodifica UMA SEGUNDA gravação ([KEY_RECORDING_ID_B]),
+ * aplica o balance ([KEY_BALANCE]) como ganhos relativos A/B, roda
+ * [avisosDeMescla] ANTES de renderizar e passa a decisão de tons
+ * ([KEY_DECISAO_TONS]): RECUSAR com tons incompatíveis falha com [KEY_RECUSADO]
+ * = true — a tela confirma ("continuar mesmo assim?") e re-enfileira com SEGUIR.
+ * LOOP aplica [KEY_REPETICOES] escrevendo o ciclo N vezes (a emenda fechada
+ * pelo motor não estala ao repetir — Gate 6: "loop × 20 sem clique").
  */
 class CriacaoWorker(
     context: Context,
@@ -77,6 +87,9 @@ class CriacaoWorker(
         val marcadoresMs = inputData.getLongArray(KEY_MARCADORES_MS) ?: longArrayOf()
         val compassos = inputData.getInt(KEY_COMPASSOS, 4)
         val fator = inputData.getFloat(KEY_FATOR, 4f)
+        val repeticoes = inputData.getInt(KEY_REPETICOES, 1)
+        val balance = inputData.getFloat(KEY_BALANCE, BALANCE_NEUTRO)
+        val decisaoTons = inputData.getString(KEY_DECISAO_TONS) ?: DECISAO_RECUSAR
         val titulo = inputData.getString(KEY_TITLE)
         val fingerprintAnterior = inputData.getFloatArray(KEY_FINGERPRINT_ANTERIOR)
 
@@ -90,6 +103,25 @@ class CriacaoWorker(
             return@withContext Result.failure(
                 workDataOf(KEY_ERROR to "arquivo de origem ilegível (cofre fechado?)"),
             )
+        }
+
+        // ——— MESCLA: a segunda trilha vem por key própria (A = recordingId da tela) ———
+        var arquivoB: File? = null
+        if (modo == MODO_MESCLA) {
+            val idB = inputData.getLong(KEY_RECORDING_ID_B, -1L)
+            if (idB <= 0 || idB == recordingId) {
+                return@withContext Result.failure(
+                    workDataOf(KEY_ERROR to "escolha OUTRA gravação como trilha B"),
+                )
+            }
+            val origemB = entry.repository().getById(idB)
+            val path = origemB?.let { runCatching { File(entry.files().playablePath(it)) }.getOrNull() }
+            if (origemB == null || path == null || !path.isFile) {
+                return@withContext Result.failure(
+                    workDataOf(KEY_ERROR to "trilha B ilegível ($idB)"),
+                )
+            }
+            arquivoB = path
         }
 
         val inicio = System.currentTimeMillis()
@@ -107,6 +139,30 @@ class CriacaoWorker(
                 return@withContext Result.failure(
                     workDataOf(KEY_ERROR to "origem não decodificou (arquivo corrompido?)"),
                 )
+            }
+
+            // ——— MESCLA: decodifica a trilha B e aplica o balance como ganhos relativos ———
+            var acumuladoB: DecodificadorMono? = null
+            if (modo == MODO_MESCLA) {
+                val b = DecodificadorMono()
+                val decodificouB = PcmDecoder.decode(
+                    arquivoB!!, // não-nulo: validado acima quando modo == MESCLA
+                    { rate, canais -> b.sampleRate = rate; b.definirCanais(canais) },
+                    { pcm, length -> b.adicionar(pcm, length) },
+                    { isStopped },
+                )
+                if (isStopped) return@withContext Result.failure()
+                if (!decodificouB || b.pcm.isEmpty() || b.sampleRate != acumulado.sampleRate) {
+                    return@withContext Result.failure(
+                        workDataOf(KEY_ERROR to "trilha B não decodificou (ou taxa diferente de A)"),
+                    )
+                }
+                val ganhos = ganhosDeBalance(balance)
+                for (i in b.pcm.indices) b.pcm[i] = b.pcm[i] * ganhos.second
+                acumuladoB = b
+                // A também ganha o fator dele — o balance sobrevive ao re-balanceamento
+                // de RMS feito pelo motor como a razão ganho_A/ganho_B.
+                for (i in acumulado.pcm.indices) acumulado.pcm[i] = acumulado.pcm[i] * ganhos.first
             }
 
             // ——— ValidationLayer ANTES do render: receita fora dos limites
@@ -146,6 +202,17 @@ class CriacaoWorker(
                         .let { Render(it.pcm, it.sampleRate, it.duracaoS, it.avisos, it.fingerprint) }
                     MODO_TEXTURA -> motor.criarTextura(pcm, taxa, fator.toDouble(), receitaJson)
                         .let { Render(it.pcm, it.sampleRate, it.duracaoS, it.avisos, it.fingerprint) }
+                    MODO_MESCLA -> {
+                        // Avisos ANTES de renderizar (Gate 6): tons/andamento vão na saída
+                        // mesmo quando o render é recusado (decisão RECUSAR + tons incompatíveis).
+                        val avisosPre = runCatching {
+                            motor.avisosDeMescla(pcm, acumuladoB!!.pcm, taxa)
+                        }.getOrElse { emptyList() }
+                        val decisao =
+                            if (decisaoTons == DECISAO_SEGUIR) DecisaoTons.SEGUIR else DecisaoTons.RECUSAR
+                        motor.mesclar(pcm, acumuladoB!!.pcm, taxa, LUFS_ALVO_MESCLA, decisao, receitaJson)
+                            .let { Render(it.pcm, it.sampleRate, it.duracaoS, avisosPre + it.avisos, it.fingerprint) }
+                    }
                     MODO_MELHORES -> motor.melhoresMomentos(pcm, taxa, validada.duracaoAlvoS, marcadores, receitaJson)
                         .let { Render(it.pcm, it.sampleRate, it.duracaoS, it.avisos, it.fingerprint) }
                     else -> motor.renderizarRemix(pcm, taxa, receitaJson)
@@ -153,10 +220,19 @@ class CriacaoWorker(
                 }
             }.getOrElse { e ->
                 Timber.w(e, "render falhou (modo=%s)", modo)
+                // MESCLA recusada por tons (decisão RECUSAR): devolve TAMBÉM os avisos
+                // de [avisosDeMescla] para a tela montar o diálogo de confirmação.
+                val avisosPreMescla = if (modo == MODO_MESCLA && acumuladoB != null) {
+                    runCatching { motor.avisosDeMescla(pcm, acumuladoB!!.pcm, taxa) }.getOrElse { emptyList() }
+                } else {
+                    emptyList()
+                }
                 return@withContext Result.failure(
                     workDataOf(
                         KEY_ERROR to (e.message ?: "falha do motor no render"),
                         KEY_STACKTRACE to e.stackTraceToString(),
+                        KEY_RECUSADO to (modo == MODO_MESCLA && decisaoTons != DECISAO_SEGUIR),
+                        KEY_AVISOS to avisosPreMescla.joinToString(" | "),
                     ),
                 )
             }
@@ -178,7 +254,9 @@ class CriacaoWorker(
 
             // ——— Grava o WAV novo (mono 16 bits) e o ingere como gravação nova ———
             val saida = arquivoSaida(modo)
-            escreverWav(saida, resultado.pcm, resultado.sampleRate.toInt())
+            // LOOP com repetições: o ciclo fechado pelo motor é escrito N vezes —
+            // a emenda não estala (Gate 6: "loop 4 compassos × 20 sem clique").
+            escreverWav(saida, resultado.pcm, resultado.sampleRate.toInt(), repeticoes = if (modo == MODO_LOOP) repeticoes else 1)
             val novoId = entry.ingestor().ingest(
                 file = saida,
                 title = titulo ?: tituloPadrao(modo, origem.title, compassos, fator, validada.duracaoAlvoS),
@@ -226,6 +304,7 @@ class CriacaoWorker(
         val prefixo = when (modo) {
             MODO_LOOP -> "loop"
             MODO_TEXTURA -> "textura"
+            MODO_MESCLA -> "mescla"
             MODO_MELHORES -> "melhores"
             else -> "remix"
         }
@@ -236,26 +315,26 @@ class CriacaoWorker(
         return f
     }
 
-    /** PCM mono f32 → WAV PCM 16 bits mono (o mesmo formato do cofre herda). */
-    internal fun escreverWav(destino: File, pcm: List<Float>, sampleRate: Int) {
-        FileOutputStream(destino).use { out ->
-            val bytes = ByteArray(pcm.size * 2)
-            var i = 0
-            for (amostra in pcm) {
-                val v = (amostra.coerceIn(-1f, 1f) * Short.MAX_VALUE).toInt().toShort()
-                bytes[i] = (v.toInt() and 0xFF).toByte()
-                bytes[i + 1] = ((v.toInt() shr 8) and 0xFF).toByte()
-                i += 2
-            }
-            out.write(WavHeaderWriter.build(sampleRate, 1, 16, bytes.size.toLong()))
-            out.write(bytes)
-        }
+    /** PCM mono f32 → WAV PCM 16 bits mono (o mesmo formato do cofre herda).
+     *  [repeticoes] > 1 escreve o ciclo N vezes (loop do F6): a emenda fechada
+     *  pelo motor não estala, e o WAV cresce sem estourar a memória (stream por ciclo). */
+    internal fun escreverWav(destino: File, pcm: List<Float>, sampleRate: Int, repeticoes: Int = 1) {
+        escreverWavEstatico(destino, pcm, sampleRate, repeticoes)
     }
+
+    /**
+     * Balance da mescla (F6) → ganhos relativos (A, B). 0 = só A, 1 = só B,
+     * 0,5 = neutro (os dois a 1,0). O chão de 0,1 evita trilha muda — o motor
+     * re-balanceia por RMS com teto de ganho, então a RAZÃO dos ganhos é o
+     * que de fato sobrevive ao render.
+     */
+    internal fun ganhosDeBalance(balance: Float): Pair<Float, Float> = ganhosDeBalanceEstatico(balance)
 
     private fun tituloPadrao(modo: String, origem: String, compassos: Int, fator: Float, duracaoAlvo: Double): String =
         when (modo) {
             MODO_LOOP -> "Loop $compassos compassos · $origem"
             MODO_TEXTURA -> "Textura ${fator.toInt()}× · $origem"
+            MODO_MESCLA -> "Mescla · $origem"
             MODO_MELHORES -> "Melhores momentos · $origem"
             else -> "Remix ${duracaoAlvo.toInt()} s · $origem"
         }
@@ -289,7 +368,36 @@ class CriacaoWorker(
         const val MODO_REMIX = "remix"
         const val MODO_LOOP = "loop"
         const val MODO_TEXTURA = "textura"
+        const val MODO_MESCLA = "mescla"
         const val MODO_MELHORES = "melhores"
+
+        /** Versão estática dos helpers puros (testes JVM chamam sem instância). */
+        internal fun escreverWavEstatico(destino: File, pcm: List<Float>, sampleRate: Int, repeticoes: Int = 1) {
+            val ciclos = repeticoes.coerceIn(1, REPETICOES_MAX)
+            val bytesPorCiclo = pcm.size * 2
+            FileOutputStream(destino).use { out ->
+                out.write(WavHeaderWriter.build(sampleRate, 1, 16, bytesPorCiclo.toLong() * ciclos))
+                repeat(ciclos) {
+                    val bytes = ByteArray(pcm.size * 2)
+                    var i = 0
+                    for (amostra in pcm) {
+                        val v = (amostra.coerceIn(-1f, 1f) * Short.MAX_VALUE).toInt().toShort()
+                        bytes[i] = (v.toInt() and 0xFF).toByte()
+                        bytes[i + 1] = ((v.toInt() shr 8) and 0xFF).toByte()
+                        i += 2
+                    }
+                    out.write(bytes)
+                }
+            }
+        }
+
+        internal fun ganhosDeBalanceEstatico(balance: Float): Pair<Float, Float> {
+            val b = balance.coerceIn(0f, 1f)
+            val ganhoA = (1f - b).coerceAtLeast(CHAO_BALANCE)
+            val ganhoB = b.coerceAtLeast(CHAO_BALANCE)
+            val maior = maxOf(ganhoA, ganhoB)
+            return ganhoA / maior to ganhoB / maior
+        }
 
         const val KEY_RECORDING_ID = "recording_id"
         const val KEY_MODO = "modo"
@@ -299,6 +407,19 @@ class CriacaoWorker(
         const val KEY_FATOR = "fator"
         const val KEY_TITLE = "titulo"
         const val KEY_FINGERPRINT_ANTERIOR = "fingerprint_anterior"
+
+        // ——— F6: loop (repetições), mescla (trilha B, balance, decisão de tons) ———
+        const val KEY_REPETICOES = "repeticoes"
+        const val KEY_RECORDING_ID_B = "recording_id_b"
+        const val KEY_BALANCE = "balance"
+        const val KEY_DECISAO_TONS = "decisao_tons"
+        const val DECISAO_SEGUIR = "seguir"
+        const val DECISAO_RECUSAR = "recusar"
+        const val BALANCE_NEUTRO = 0.5f
+        const val CHAO_BALANCE = 0.1f
+        const val REPETICOES_MAX = 50
+        /** LUFS alvo da mescla (streaming) — o motor masteriza a soma nesse alvo. */
+        const val LUFS_ALVO_MESCLA = -14.0
 
         const val KEY_NOVA_GRAVACAO_ID = "nova_gravacao_id"
         const val KEY_DURACAO_S = "duracao_s"
@@ -341,6 +462,30 @@ class CriacaoWorker(
             val duracao = v[i + 3]
             val lufs = v[i + 4].takeIf { !it.isNaN() && it > -900f }
             return FingerprintAudio(mfcc, centroid, rms, contraste, razao, duracao, lufs)
+        }
+    }
+}
+
+/**
+ * Tipo de criação do F6, no contrato do roteiro (seção 3.2). O worker continua
+ * recebendo o [CriacaoWorker.KEY_MODO] como string (o Data do WorkManager não
+ * carrega enums); [de] é a ponte única entre o contrato do prompt e os modos
+ * já fechados em gate — remix (F3) continua válido para a aba Receita.
+ */
+enum class CriacaoTipo {
+    LOOP,
+    TEXTURA,
+    MESCLA,
+    MELHORES,
+    ;
+
+    companion object {
+        fun de(modo: String): CriacaoTipo? = when (modo) {
+            CriacaoWorker.MODO_LOOP -> LOOP
+            CriacaoWorker.MODO_TEXTURA -> TEXTURA
+            CriacaoWorker.MODO_MESCLA -> MESCLA
+            CriacaoWorker.MODO_MELHORES -> MELHORES
+            else -> null
         }
     }
 }

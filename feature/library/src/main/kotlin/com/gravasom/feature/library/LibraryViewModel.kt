@@ -19,6 +19,8 @@ import com.gravasom.core.domain.usecase.RestoreRecording
 import com.gravasom.core.domain.usecase.SearchRecordings
 import com.gravasom.core.service.clip.JoinOutcome
 import com.gravasom.core.service.clip.JoinService
+import com.gravasom.core.service.library.ImportOutcome
+import com.gravasom.core.service.library.ImportUseCase
 import com.gravasom.core.service.library.RecordingFiles
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,6 +46,7 @@ class LibraryViewModel @Inject constructor(
     private val metrics: UsageMetrics,
     private val joins: JoinService,
     private val mixStore: MixAnalysisStore,
+    private val importUseCase: ImportUseCase,
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
@@ -155,6 +158,39 @@ class LibraryViewModel @Inject constructor(
     /** Onda 2, "juntar": concatena na ordem dada numa gravacao nova; o resultado volta pelo callback para o snackbar. */
     fun join(recordings: List<Recording>, onResult: (JoinOutcome) -> Unit) {
         viewModelScope.launch { onResult(joins.join(recordings)) }
+    }
+
+    // ——— Importação de áudio do celular (F6): porta SAF do botão “Importar” ———
+
+    /** Estado da importação corrente (SAF). A tela mostra snackbars e consome. */
+    sealed interface ImportState {
+        data object Ocioso : ImportState
+        data object Importando : ImportState
+        data class Importado(val id: Long) : ImportState
+        /** Mesmo arquivo (SHA-256) já está na biblioteca — NÃO duplica. */
+        data class Duplicata(val idExistente: Long) : ImportState
+        data class Falhou(val mensagem: String) : ImportState
+    }
+
+    private val _importState = MutableStateFlow<ImportState>(ImportState.Ocioso)
+    val importState: StateFlow<ImportState> = _importState
+
+    /** Importa o documento escolhido no picker do sistema (ACTION_OPEN_DOCUMENT, mime de áudio). */
+    fun importar(uri: Uri) {
+        if (_importState.value == ImportState.Importando) return
+        _importState.value = ImportState.Importando
+        viewModelScope.launch {
+            _importState.value = when (val outcome = importUseCase.importFromUri(uri, persistable = true)) {
+                is ImportOutcome.Imported -> ImportState.Importado(outcome.id)
+                is ImportOutcome.Duplicata -> ImportState.Duplicata(outcome.idExistente)
+                ImportOutcome.Unsupported -> ImportState.Falhou("formato não suportado (use mp3, wav, aac, flac ou m4a)")
+                ImportOutcome.Invalid -> ImportState.Falhou("não foi possível ler esse áudio")
+            }
+        }
+    }
+
+    fun consumirImportState() {
+        if (_importState.value != ImportState.Importando) _importState.value = ImportState.Ocioso
     }
 
     private companion object {

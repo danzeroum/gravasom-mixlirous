@@ -5,6 +5,7 @@ import com.gravasom.core.domain.repository.RecordingRepository
 import com.gravasom.core.service.BootRecovery
 import com.gravasom.core.service.MediaProbe
 import com.gravasom.core.service.RecordingStorage
+import com.gravasom.core.service.library.ImportCleanupWorker
 import com.gravasom.core.service.library.RecordingFiles
 import com.gravasom.core.service.library.RecordingIngestor
 import dagger.hilt.android.HiltAndroidApp
@@ -44,6 +45,8 @@ class GravasomApplication : Application() {
             recoverInterrupted()
             purgeOldTrash()
         }
+        // F6/Importação: parciais .tmp de importações interrompidas expiram em 24 h.
+        ImportCleanupWorker.agendar(this)
     }
 
     /** Recupera gravacoes interrompidas (kill do processo) e as coloca na biblioteca. */

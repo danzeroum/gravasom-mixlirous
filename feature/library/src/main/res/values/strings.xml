@@ -22,6 +22,10 @@
     <string name="library_import_ok">Áudio recebido e adicionado às gravações</string>
     <string name="library_import_unsupported">Esse formato de áudio ainda não é suportado (use M4A, WAV ou MP3)</string>
     <string name="library_import_invalid">Não foi possível ler esse áudio</string>
+    <!-- F6/Importação pela porta SAF (botão Importar da Library) -->
+    <string name="library_import_desc">Importar áudio do celular</string>
+    <string name="library_import_saf_ok">Áudio importado — já está na biblioteca</string>
+    <string name="library_import_duplicata">Já existe — este arquivo já foi importado</string>
     <string name="library_saved_ok">Arquivo salvo</string>
     <string name="library_saved_fail">Não foi possível salvar o arquivo</string>
     <string name="library_published">Também em Músicas/Recordings</string>

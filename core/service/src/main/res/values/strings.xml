@@ -16,4 +16,7 @@
     <string name="widget_record">Gravar</string>
     <string name="widget_marker">Marcar</string>
     <string name="widget_marker_idle">Nenhuma gravação em andamento para marcar</string>
+    <!-- F8: terceiro alvo do widget e tile "Criar versão" -->
+    <string name="widget_criar">Criar versão</string>
+    <string name="tile_criar">Criar versão</string>
 </resources>

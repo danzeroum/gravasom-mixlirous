@@ -16,6 +16,12 @@
     <string name="settings_no_internet">Este app não usa a internet.</string>
     <string name="settings_section_recording">Gravação</string>
     <string name="settings_section_privacy">Privacidade</string>
+    <!-- F8: Aparência (seletor de paleta) -->
+    <string name="settings_section_aparencia">Aparência</string>
+    <string name="settings_aparencia_desc">Cor do app — a mudança vale na hora</string>
+    <string name="settings_paleta_mixlirous">Mixlirous</string>
+    <string name="settings_paleta_gravasom">Gravasom</string>
+    <string name="settings_paleta_sistema">Cores do sistema</string>
     <string name="settings_section_about">Sobre</string>
     <string name="numbers_title">Seus números</string>
     <string name="numbers_recordings">Gravações</string>

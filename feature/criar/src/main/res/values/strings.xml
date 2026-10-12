@@ -17,4 +17,26 @@
     <string name="criar_renderizando">Renderizando…</string>
     <string name="criar_distancia">Distância do fingerprint: %1$.4f (mesma receita: &lt; 0,05)</string>
     <string name="criar_voltar">Voltar</string>
+
+    <!-- F6: abas Loops / Texturas / Mescla / Melhores -->
+    <string name="criar_aba_loops">Loops</string>
+    <string name="criar_aba_texturas">Texturas</string>
+    <string name="criar_aba_mescla">Mescla</string>
+    <string name="criar_aba_melhores">Melhores</string>
+    <string name="criar_cancelar">Cancelar</string>
+    <string name="criar_loop_desc">Loop de N compassos com a emenda fechada pelo motor — repetir não estala.</string>
+    <string name="criar_loop_repeticoes">Repetições: %1$d (mínimo 2, máximo 50)</string>
+    <string name="criar_loop_fade">Fade por emenda: %1$d ms (limite 2000)</string>
+    <string name="criar_loop_acao">Renderizar loop</string>
+    <string name="criar_textura_desc">Fundo contínuo (Natureza/Água): a gravação estica 2×–8× e fecha em loop.</string>
+    <string name="criar_textura_acao">Renderizar textura</string>
+    <string name="criar_mescla_desc">Soma a trilha A (esta gravação) com a trilha B: andamento ajustado, volumes equilibrados e masterização.</string>
+    <string name="criar_mescla_trilha_b">Trilha B (escolha na lista)</string>
+    <string name="criar_mescla_balance">Balance: %1$d%% (0 = só A · 100 = só B)</string>
+    <string name="criar_mescla_acao">Renderizar mescla</string>
+    <string name="criar_mescla_recusa_titulo">Tons incompatíveis: continuar mesmo assim?</string>
+    <string name="criar_mescla_recusa_confirmar">Continuar mesmo assim</string>
+    <string name="criar_melhores_desc">Maiores energias até o alvo; os marcadores da gravação entram como trechos obrigatórios.</string>
+    <string name="criar_melhores_marcadores">%1$d marcador(es) nesta gravação — todos entram no render.</string>
+    <string name="criar_melhores_acao">Renderizar melhores momentos</string>
 </resources>

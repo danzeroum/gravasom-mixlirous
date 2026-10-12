@@ -26,6 +26,13 @@ interface RecordingDao {
     @Query("SELECT * FROM recordings WHERE id = :id")
     suspend fun getById(id: Long): RecordingEntity?
 
+    /** true quando já existe gravação com o MESMO arquivo (importação idempotente — F6). */
+    @Query("SELECT EXISTS(SELECT 1 FROM recordings WHERE sha256 = :sha256)")
+    suspend fun existsBySha256(sha256: String): Boolean
+
+    @Query("SELECT * FROM recordings WHERE sha256 = :sha256 LIMIT 1")
+    suspend fun getBySha256(sha256: String): RecordingEntity?
+
     @Insert
     suspend fun insert(entity: RecordingEntity): Long
 

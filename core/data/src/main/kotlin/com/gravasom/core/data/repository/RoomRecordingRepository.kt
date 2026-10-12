@@ -23,6 +23,8 @@ class RoomRecordingRepository(private val dao: RecordingDao) : RecordingReposito
 
     override suspend fun getById(id: Long): Recording? = dao.getById(id)?.toDomain()
 
+    override suspend fun bySha256(sha256: String): Recording? = dao.getBySha256(sha256)?.toDomain()
+
     override suspend fun insert(recording: Recording): Long = dao.insert(recording.toEntity())
 
     override suspend fun rename(id: Long, newTitle: String) = dao.rename(id, newTitle)

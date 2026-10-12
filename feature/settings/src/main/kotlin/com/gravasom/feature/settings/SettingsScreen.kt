@@ -1,16 +1,21 @@
 package com.gravasom.feature.settings
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
@@ -28,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -37,6 +43,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gravasom.core.domain.audio.RecordingFormat
 import com.gravasom.core.domain.preset.FormatPreset
+import com.gravasom.core.ui.Paleta
+import com.gravasom.core.ui.esquemaDeCores
 
 private val Bitrates = listOf(64, 128, 192)
 private val MIN_TOUCH_TARGET = 48.dp
@@ -62,6 +70,9 @@ fun SettingsScreen(onOpenNumbers: () -> Unit, modifier: Modifier = Modifier, vie
         }
         Text(stringResource(R.string.settings_quality_note), style = MaterialTheme.typography.bodySmall)
         HorizontalDivider()
+        Section(R.string.settings_section_aparencia)
+        PaletteSelectorRow(s.paletteId, viewModel::setPalette)
+        HorizontalDivider()
         Section(R.string.settings_section_privacy)
         SwitchRow(R.string.settings_private, R.string.settings_private_desc, s.privateMode, "chave_privado", viewModel::setPrivate)
         SwitchRow(
@@ -86,6 +97,56 @@ fun SettingsScreen(onOpenNumbers: () -> Unit, modifier: Modifier = Modifier, vie
 @Composable
 private fun Section(title: Int) {
     Text(stringResource(title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+}
+
+/**
+ * F8 — seletor de paleta em Ajustes › Aparência. As paletas disponíveis são as
+ * do design system ([com.gravasom.core.ui.Paleta.disponiveis]): Mixlirous
+ * (roxo, padrão), Gravasom (teal) e Cores do sistema (Material You, Android 12+).
+ * A escolha vai para a DataStore ([PreferencesRepository.setPalette]) e o tema
+ * reage na hora ([GravasomApp] observa a preferência).
+ */
+@Composable
+private fun PaletteSelectorRow(selecionada: String, onSelect: (String) -> Unit) {
+    val paletas = remember { Paleta.disponiveis() }
+    Column {
+        Text(stringResource(R.string.settings_aparencia_desc), style = MaterialTheme.typography.bodySmall)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .testTag("seletor_paleta"),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            paletas.forEach { paleta ->
+                FilterChip(
+                    selected = selecionada == paleta.id,
+                    onClick = { onSelect(paleta.id) },
+                    label = { Text(stringResource(nomeDaPaleta(paleta))) },
+                    leadingIcon = { BolinhaDaPaleta(paleta) },
+                    modifier = Modifier.testTag("paleta_${paleta.id}"),
+                )
+            }
+        }
+    }
+}
+
+/** Amostra da cor primária da paleta (prévia da identidade visual). */
+@Composable
+private fun BolinhaDaPaleta(paleta: Paleta) {
+    val escuro = isSystemInDarkTheme()
+    val cor: Color = remember(paleta, escuro) { esquemaDeCores(paleta, escuro).primary }
+    Box(
+        modifier = Modifier
+            .size(14.dp)
+            .background(cor, shape = CircleShape),
+    )
+}
+
+private fun nomeDaPaleta(paleta: Paleta): Int = when (paleta) {
+    Paleta.MIXLIROUS -> R.string.settings_paleta_mixlirous
+    Paleta.GRAVASOM -> R.string.settings_paleta_gravasom
+    Paleta.SISTEMA -> R.string.settings_paleta_sistema
 }
 
 @Composable

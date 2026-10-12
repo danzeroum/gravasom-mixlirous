@@ -1,6 +1,7 @@
 package com.gravasom.feature.library
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -8,14 +9,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.LibraryAdd
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Lock
@@ -82,7 +87,11 @@ fun LibraryScreen(
     val filtroBpm by viewModel.filtroBpm.collectAsStateWithLifecycle()
     val filtroTom by viewModel.filtroTom.collectAsStateWithLifecycle()
     val tomsDisponiveis by viewModel.tomsDisponiveis.collectAsStateWithLifecycle()
+    val importState by viewModel.importState.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+
+    // ——— F6/Importação: picker SAF — porta única de leitura do armazenamento ———
+    val importPicker = ImportPicker(viewModel, snackbar)
     val player = rememberPlayer()
     var currentId by remember { mutableStateOf<Long?>(null) }
     var renaming by remember { mutableStateOf<Recording?>(null) }
@@ -97,7 +106,7 @@ fun LibraryScreen(
     )
     Box(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            SearchField(query, viewModel::setQuery)
+            SearchRow(query, viewModel::setQuery, onImportar = { importPicker.launch(MIMES_DE_AUDIO) })
             TagFilterRow(availableTags, selectedTags, viewModel::toggleTag)
             MixFilterRow(filtroBpm, filtroTom, tomsDisponiveis, viewModel::setFiltroBpm, viewModel::setFiltroTom)
             SelectionBar(
@@ -118,20 +127,17 @@ fun LibraryScreen(
                 }
             }
             // A gravacao aberta e sempre lida da lista: renomear ou mudar etiquetas aparece no painel sem reabrir.
-            val current = items.firstOrNull { it.id == currentId }
-            if (current != null) {
-                // Fechar o painel NAO pausa: o audio segue em segundo plano (PlaybackService) e pausa-se pela notificacao.
-                PlayerDock(current, player, playerViewModel, onEnhance = onOpenEnhance) { currentId = null; playerViewModel.close() }
-            }
+            PlayerDockSeAberto(items, currentId, player, playerViewModel, onOpenEnhance, onFechar = { currentId = null; playerViewModel.close() })
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }
     PlayerEventsEffect(playerViewModel, snackbar)
-    renaming?.let { RenameDialog(it, onDismiss = { renaming = null }, onConfirm = { t -> viewModel.rename(it, t); renaming = null }) }
-    JuncaoPendente(confirmandoJuncao, selecao, viewModel, snackbar) {
-        confirmandoJuncao = false
-        selecao = emptyList()
-    }
+    DialogosDaLista(
+        renaming, viewModel, snackbar,
+        onRenameConcluido = { renaming = null },
+        confirmandoJuncao, selecao,
+        onJuncaoConcluida = { confirmandoJuncao = false; selecao = emptyList() },
+    )
 }
 
 /** O dialogo de juncao pendente: confirma a ordem, roda e avisa no snackbar. */
@@ -341,8 +347,25 @@ private data class RowActions(
     val onDelete: (Recording) -> Unit,
 )
 
+/** Busca + botão “Importar” (F6): a porta SAF do picker de áudio do celular. */
 @Composable
-private fun SearchField(query: String, onChange: (String) -> Unit) {
+private fun SearchRow(query: String, onChange: (String) -> Unit, onImportar: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        SearchField(query, onChange, Modifier.weight(1f))
+        IconButton(
+            onClick = onImportar,
+            modifier = Modifier
+                .sizeIn(minWidth = 48.dp, minHeight = 48.dp) // alvo de toque ≥ 48 dp (acessibilidade)
+                .testTag("botao_importar"),
+        ) {
+            Icon(Icons.Filled.LibraryAdd, contentDescription = stringResource(R.string.library_import_desc))
+        }
+        Spacer(Modifier.width(12.dp))
+    }
+}
+
+@Composable
+private fun SearchField(query: String, onChange: (String) -> Unit, modifier: Modifier = Modifier) {
     OutlinedTextField(
         value = query,
         onValueChange = onChange,
@@ -354,7 +377,7 @@ private fun SearchField(query: String, onChange: (String) -> Unit) {
                 IconButton(onClick = { onChange("") }) { Icon(Icons.Filled.Clear, stringResource(R.string.library_search_clear)) }
             }
         },
-        modifier = Modifier.fillMaxWidth().padding(16.dp).testTag("campo_busca"),
+        modifier = modifier.padding(16.dp).testTag("campo_busca"),
     )
 }
 
@@ -488,23 +511,7 @@ private fun RecordingRow(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.testTag("duracao_item"),
             )
-            // Etiqueta da análise musical (F2): "120 BPM · Lá menor".
-            if (!etiqueta.isNullOrBlank()) {
-                Text(
-                    etiqueta,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.testTag("etiqueta_mix_item"),
-                )
-            }
-            if (r.tags.isNotEmpty()) {
-                Text(
-                    r.tags.joinToString("  ") { "#$it" },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.testTag("etiquetas_item"),
-                )
-            }
+            EtiquetasDaLinha(etiqueta, r.isImported, r.tags)
         }
         Box {
             IconButton(onClick = { menu = true }, modifier = Modifier.testTag("mais_acoes")) {
@@ -558,3 +565,109 @@ private fun RenameDialog(recording: Recording, onDismiss: () -> Unit, onConfirm:
     )
 }
 
+/** Mimes aceitos no picker de importação (F6): mp3, wav, aac, flac, m4a. */
+private val MIMES_DE_AUDIO = arrayOf(
+    "audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav",
+    "audio/aac", "audio/flac", "audio/mp4", "audio/x-m4a", "audio/m4a",
+)
+
+/**
+ * F6/Importação: picker SAF (ACTION_OPEN_DOCUMENT + EXTRA_MIME_TYPES de áudio)
+ * e o feedback da importação em snackbars ("Já existe" em duplicata). A porta
+ * SAF é a ÚNICA leitura direta de armazenamento do app (Scoped Storage).
+ */
+@Composable
+private fun ImportPicker(
+    viewModel: LibraryViewModel,
+    snackbar: SnackbarHostState,
+): androidx.activity.compose.ManagedActivityResultLauncher<Array<String>, android.net.Uri?> {
+    val importState by viewModel.importState.collectAsStateWithLifecycle()
+    val snackImportOk = stringResource(R.string.library_import_saf_ok)
+    val snackDuplicata = stringResource(R.string.library_import_duplicata)
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) viewModel.importar(uri)
+    }
+    LaunchedEffect(importState, snackImportOk, snackDuplicata) {
+        when (val estado = importState) {
+            is LibraryViewModel.ImportState.Importado -> {
+                snackbar.showSnackbar(snackImportOk)
+                viewModel.consumirImportState()
+            }
+            is LibraryViewModel.ImportState.Duplicata -> {
+                snackbar.showSnackbar(snackDuplicata)
+                viewModel.consumirImportState()
+            }
+            is LibraryViewModel.ImportState.Falhou -> {
+                snackbar.showSnackbar(estado.mensagem)
+                viewModel.consumirImportState()
+            }
+            else -> Unit
+        }
+    }
+    return launcher
+}
+
+/** Etiquetas do item: análise (F2), origem IMPORTED (F6) e tags do usuário. */
+@Composable
+private fun EtiquetasDaLinha(etiqueta: String?, importada: Boolean, tags: List<String>) {
+    if (!etiqueta.isNullOrBlank()) {
+        Text(
+            etiqueta,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.testTag("etiqueta_mix_item"),
+        )
+    }
+    // Etiqueta de origem (F6/Importação): literal "origin=IMPORTED" do roteiro.
+    if (importada) {
+        Text(
+            "origin=IMPORTED",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.tertiary,
+            modifier = Modifier.testTag("etiqueta_importada"),
+        )
+    }
+    if (tags.isNotEmpty()) {
+        Text(
+            tags.joinToString("  ") { "#$it" },
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.testTag("etiquetas_item"),
+        )
+    }
+}
+
+/** Diálogos da lista: renomear e confirmação da junção (ordem dos áudios). */
+@Composable
+private fun DialogosDaLista(
+    renaming: Recording?,
+    viewModel: LibraryViewModel,
+    snackbar: SnackbarHostState,
+    onRenameConcluido: () -> Unit,
+    confirmandoJuncao: Boolean,
+    selecao: List<Recording>,
+    onJuncaoConcluida: () -> Unit,
+) {
+    renaming?.let {
+        RenameDialog(
+            it,
+            onDismiss = onRenameConcluido,
+            onConfirm = { t -> viewModel.rename(it, t); onRenameConcluido() },
+        )
+    }
+    JuncaoPendente(confirmandoJuncao, selecao, viewModel, snackbar, onJuncaoConcluida)
+}
+
+/** Painel do player quando há gravação aberta. Fechar NÃO pausa (PlaybackService). */
+@Composable
+private fun PlayerDockSeAberto(
+    items: List<Recording>,
+    currentId: Long?,
+    player: PlayerController,
+    playerViewModel: PlayerViewModel,
+    onEnhance: (Long) -> Unit,
+    onFechar: () -> Unit,
+) {
+    val current = items.firstOrNull { it.id == currentId } ?: return
+    PlayerDock(current, player, playerViewModel, onEnhance = onEnhance, onClose = onFechar)
+}

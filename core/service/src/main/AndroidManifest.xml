@@ -23,6 +23,18 @@
             </intent-filter>
         </service>
 
+        <!-- F8: tile "Criar versão" (atalho rápido para o fluxo de criação F6). -->
+        <service
+            android:name="com.gravasom.core.service.tile.CriarTileService"
+            android:exported="true"
+            android:icon="@android:drawable/ic_media_play"
+            android:label="Criar versão"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <receiver
             android:name="com.gravasom.core.service.widget.RecordWidgetReceiver"
             android:exported="true"

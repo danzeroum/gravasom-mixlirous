@@ -79,6 +79,7 @@ class EnhanceViewModelTest {
         override fun observeFavorites(): Flow<List<Recording>> = MutableStateFlow(emptyList())
         override fun observeTrash(): Flow<List<Recording>> = MutableStateFlow(emptyList())
         override suspend fun getById(id: Long): Recording? = recording?.takeIf { it.id == id }
+        override suspend fun bySha256(sha256: String): Recording? = null
         override suspend fun insert(recording: Recording): Long = recording.id
         override suspend fun rename(id: Long, newTitle: String) = Unit
         override suspend fun setFavorite(id: Long, favorite: Boolean) = Unit

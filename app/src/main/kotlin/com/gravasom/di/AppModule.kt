@@ -10,6 +10,7 @@ import com.gravasom.core.domain.marker.MarkerRepository
 import com.gravasom.core.domain.repository.RecordingRepository
 import com.gravasom.core.service.analysis.RecordingAnalyzer
 import com.gravasom.core.service.library.AudioImporter
+import com.gravasom.core.service.library.ImportUseCase
 import com.gravasom.core.service.library.MediaStorePublisher
 import com.gravasom.core.service.library.RecordingFiles
 import com.gravasom.core.service.library.RecordingIngestor
@@ -54,13 +55,16 @@ object AppModule {
     ): RecordingFiles = RecordingFiles(context, repo, publisher, vaultStore)
 
     @Provides @Singleton
-    fun audioImporter(
+    fun importUseCase(
         @ApplicationContext context: Context,
         repo: RecordingRepository,
         metrics: UsageMetrics,
         prefs: PreferencesRepository,
         vaultStore: VaultStore,
-    ): AudioImporter = AudioImporter(context, repo, metrics, prefs, vaultStore)
+    ): ImportUseCase = ImportUseCase(context, repo, metrics, prefs, vaultStore)
+
+    @Provides @Singleton
+    fun audioImporter(importUseCase: ImportUseCase): AudioImporter = AudioImporter(importUseCase)
 
     @Provides @Singleton
     fun ingestor(

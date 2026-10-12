@@ -10,6 +10,7 @@ import androidx.glance.action.clickable
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.action.actionStartService
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.provideContent
@@ -30,7 +31,7 @@ import com.gravasom.core.service.RecordingServiceState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Widget Glance com dois alvos: Gravar (inicia a gravacao) e Marcar (marca o instante da gravacao em curso). */
+/** Widget Glance com três alvos: Gravar (inicia a gravacao), Marcar (marca o instante) e Criar versão (F8). */
 class RecordWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -45,12 +46,20 @@ class RecordWidget : GlanceAppWidget() {
         val startAction = actionStartService(serviceIntent(context, RecordingService.ACTION_START), isForegroundService = true)
         // Marcar passa por um callback: sem gravacao em curso mostra um aviso curto (antes o toque era ignorado em silencio).
         val markerAction = actionRunCallback<MarkerActionCallback>()
+        // F8: "Criar versão" abre a biblioteca — o fluxo de criação (F6) precisa de uma
+        // gravação de origem; 1 toque na gravação → ⋮ → Criar versão.
+        val criarAction = actionStartActivity(
+            Intent(ACTION_QUICK_CRIAR).setClassName(context, ACTIVITY_CRIAR),
+        )
         Row(modifier = GlanceModifier.fillMaxSize().background(Color(0xFF12151A))) {
             Box(modifier = GlanceModifier.defaultWeight().fillMaxHeight().clickable(startAction), contentAlignment = Alignment.Center) {
                 Text(text = context.getString(R.string.widget_record), style = TextStyle(color = ColorProvider(Color.White)))
             }
             Box(modifier = GlanceModifier.defaultWeight().fillMaxHeight().clickable(markerAction), contentAlignment = Alignment.Center) {
                 Text(text = context.getString(R.string.widget_marker), style = TextStyle(color = ColorProvider(Color(MARKER_COLOR))))
+            }
+            Box(modifier = GlanceModifier.defaultWeight().fillMaxHeight().clickable(criarAction), contentAlignment = Alignment.Center) {
+                Text(text = context.getString(R.string.widget_criar), style = TextStyle(color = ColorProvider(Color(CRIAR_COLOR))))
             }
         }
     }
@@ -60,6 +69,9 @@ class RecordWidget : GlanceAppWidget() {
 
     private companion object {
         const val MARKER_COLOR = 0xFFFFC107
+        const val CRIAR_COLOR = 0xFFB388FF
+        const val ACTION_QUICK_CRIAR = "com.gravasom.action.QUICK_CRIAR"
+        const val ACTIVITY_CRIAR = "com.gravasom.MainActivity"
     }
 }
 
