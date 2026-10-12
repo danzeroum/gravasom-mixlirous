@@ -593,3 +593,35 @@ ao abrir a tela de Ajustes, e o crash REPETE em toda abertura seguinte.
 - Comando executado: `./gradlew --no-daemon :feature:settings:testDebugUnitTest` + `:app:assembleRelease` + `:app:assembleDebug` (todos `-PabiArm64Somente=true`) — **BUILD SUCCESSFUL**
 - APKs da correção (mesma chave de sempre — instalam por cima; sem modelo embutido): release **17.810.614 bytes**, SHA-256 `60c4464e373de0468921daba3b8e357f454fd1544d37eec39a781ce73e059c57`; debug **41.453.248 bytes**, SHA-256 `c981f143c3844ad082a6738703de3532a708191b8b30ecc53da47d5192c4c0d0`; `apksigner verify` OK nos dois, certificado `CN=Android Debug` SHA-256 terminado em `…9b2bd1` = o de `config/debug.keystore`
 - Falta (aparelho): instalar o release da correção, abrir Ajustes (deve abrir sem o aviso do Device care) e conferir que o seletor de Aparência renderiza as 3 paletas; se a paleta "Cores do sistema" estiver escolhida, o app segue com as cores dinâmicas
+
+## Correção de campo — Transcrever fecha o app / download do modelo nunca conclui — sessão de 2026-10-12 (noite)
+
+Sintoma no aparelho: ao clicar em Transcrever, "dá erro e sai do aplicativo"; Device care acusa
+"Gravasom Mixlirous está travando com frequência". Quatro defeitos encontrados na cadeia F7:
+
+### Bug A — o download do modelo NUNCA concluía (feature bloqueada)
+- Status: ✅ Corrigido e provado no host
+- 1) O parcial era limpo/lido em `getExternalFilesDir(null)/models/…` enquanto o DownloadManager gravava em `getExternalFilesDir(DIRECTORY_DOWNLOADS)/models/…` → arquivo nunca encontrado; 2) `parcial.renameTo(destino)` cruza volumes (sdcard/FUSE → /data/data) e SEMPRE falha no Android → todo download (60 MB baixados!) terminava em `Erro: Arquivo baixado vazio ou incompleto`. Era o "dá erro" do dono
+- Correção: `arquivoParcial()` única fonte do caminho (alinhada ao destino do DownloadManager) e `receberBaixado()` que COPIA com hash na mesma passada (`Sha256Streaming.copiarComHash`) e apaga o parcial — contrato de verificação mantido (hash antes de registrar, NADA afrouxado)
+
+### Bug B — erros do tipo `Error` matavam o processo ("saindo do aplicativo")
+- Status: ✅ Corrigido
+- O ViewModel pegava só `catch (e: Exception)`: `OutOfMemoryError`/`UnsatisfiedLinkError` (Error) escapavam e o app fechava sem explicação; `runCatching` dentro do `baixarModelo`/`importarModelo` engolia `CancellationException` (cancelar virava estado de Erro falso)
+- Correção: `catch (e: Throwable)` nos 4 pontos do `TranscricaoViewModel` (download/importar/transcrever/salvar) com mensagem própria para OOM ("Sem memória… escolha o modelo Tiny"); `CancellationException` relançada para o cancelamento voltar a Pronto/Consentimento
+
+### Bug C — preparo do áudio estourava o heap em gravações longas
+- Status: ✅ Corrigido
+- `PcmParaWhisper` guardava o PCM reamostrado no heap Java (~3× o tamanho do áudio: fluxo + toByteArray + ShortArray; 1 h ≈ 350 MB → OOM mata o processo)
+- Correção: estágio em ARQUIVO ao lado do áudio (heap plano, blocos de 64 KB) → buffer direto lido do estágio; truncamento no teto de 2 h respeitado durante a escrita; estágio apagado em `finally`
+
+### Bug D — Resample16k DESTRUÍA a amplitude (transcrição sairia lixo)
+- Status: ✅ Corrigido — achado pelo novo teste de regressão (nenhum afrouxamento; o teste antigo é que não olhava amplitude)
+- `interpolada.coerceIn(-1f, 1f) * ESCALA(32767)` tratava a entrada (PCM cru em SHORTS) como float normalizado: qualquer amostra não silenciosa virava ±32767 — ONDA QUADRADA. Zero-crossing/frequência/contagem continuavam certos, por isso `Resample16kTest` (5/5) não via; o whisper receberia ruído puro mesmo com o download consertado
+- Correção: saturação nos limites do SHORT (`coerceIn(-32768f, 32767f)`); `Resample16kTest` ganhou `aAmplitudeDoSobreviveAoReamostrador` (pico do seno ≈ 16 000) — o teste novo FALHAVA antes da correção
+
+### Extras
+- `TranscricaoWhisper`: threads limitadas a 4 (`defaultThreads()`) — `hardware_concurrency` (8 em big.LITTLE) só aumentava pico de RAM/CPU
+- Regressões novas: `BaixarModeloTest` (4 — caminho do parcial = destino do DownloadManager; cópia+hash+apaga; hash divergente descarta; <1 MB recusa), `PcmParaWhisperTest` (4 — 16k mono amostra a amostra; 48k estéreo → 160 @16k; estágio apagado; WAV vazio → null), `Resample16kTest` (6 com amplitude)
+- Comando executado: `./gradlew --no-daemon :core:data:testDebugUnitTest :feature:transcricao:testDebugUnitTest` (51 testes, 0 falhas) + `:app:assembleRelease` + `:app:assembleDebug` — BUILD SUCCESSFUL (OOM do container exigiu `-Xmx1024m` local, não commitado como regra)
+- APKs da correção (mesma chave `…9b2bd1`, instalam por cima; sem modelo embutido): release **17.810.614 bytes**, SHA-256 `45b607211a24e634cfb462a35ff917b2f5b5805c1f80858adde19299758b453f`; debug **41.553.720 bytes**, SHA-256 `2e59e2e48bd442255449e285e1169e0537b8cd682496cae18f9dade6cba4b20f`
+- Falta (aparelho — retoma o Gate 7 §9): instalar o release novo; Transcrever → consentimento mostra tamanho/origem/SHA-256 → "Baixar modelo (60 MB)" DEVE concluir (barra de %) → Pronto → transcrever com progresso → resumo com m:ss] editável → salvar; importar em modo avião; `netstat` só durante o download

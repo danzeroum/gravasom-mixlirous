@@ -5,12 +5,12 @@ import android.content.Context
 import android.database.Cursor
 import android.net.Uri
 import android.os.Environment
-import android.provider.OpenableColumns
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -42,9 +42,11 @@ class ModelManagerImpl @Inject constructor(
 
     override suspend fun baixarModelo(modelo: ModeloInfo, onProgresso: (Float) -> Unit): Result<ModelMetadata> =
         withContext(Dispatchers.IO) {
-            runCatching {
+            try {
                 // O DownloadManager recusa destino que já existe: limpar parciais de tentativas anteriores.
-                val parcial = File(context.getExternalFilesDir(null), "models/${NOME_PARCIAL}")
+                // MESMO caminho do setDestinationInExternalFilesDir abaixo (crash/erro de campo 2026-10-12:
+                // a limpeza e a cópia olhavam getExternalFilesDir(null) e o download caía em …/files/Download).
+                val parcial = arquivoParcial(context)
                 if (parcial.exists()) parcial.delete()
 
                 val request = DownloadManager.Request(Uri.parse(modelo.url))
@@ -61,34 +63,18 @@ class ModelManagerImpl @Inject constructor(
                     throw ModelVerificacaoException("Download falhou (${status.descricao()})")
                 }
 
-                // Move para o storage privado interno e verifica o hash ANTES de registrar metadados.
-                store.dirModelos.mkdirs()
-                val destino = File(store.dirModelos, modelo.nome)
-                parcial.renameTo(destino)
-                if (!destino.exists() || destino.length() < ModelStore.MINIMO_BYTES) {
-                    destino.delete()
-                    throw ModelVerificacaoException("Arquivo baixado vazio ou incompleto")
-                }
-                val hashReal = Sha256Streaming.calcular(destino)
-                if (!hashReal.equals(modelo.sha256, ignoreCase = true)) {
-                    destino.delete()
-                    throw ModelVerificacaoException("SHA-256 não confere — arquivo descartado")
-                }
-                val meta = ModelMetadata(
-                    nome = modelo.nome,
-                    tamanhoMb = destino.length() / 1e6f,
-                    sha256 = hashReal,
-                    origem = modelo.url,
-                    path = destino.absolutePath,
-                    downloadAtMillis = System.currentTimeMillis(),
-                )
+                val meta = receberBaixado(parcial, File(store.dirModelos, modelo.nome), modelo)
                 store.salvarMetadata(meta)
-                meta
+                Result.success(meta)
+            } catch (e: CancellationException) {
+                throw e // cancelar durante o download NÃO é erro: o ViewModel volta para Pronto/Consentimento
+            } catch (e: Exception) {
+                Result.failure(e)
             }
         }
 
     override suspend fun importarModelo(uri: Uri): Result<ModelMetadata> = withContext(Dispatchers.IO) {
-        runCatching {
+        try {
             val entrada = context.contentResolver.openInputStream(uri)
                 ?: throw ModelVerificacaoException("Não foi possível abrir o arquivo selecionado")
             val nomeOriginal = queryNome(uri) ?: "modelo-importado.bin"
@@ -107,11 +93,47 @@ class ModelManagerImpl @Inject constructor(
                 downloadAtMillis = null,
             )
             store.salvarMetadata(meta)
-            meta
+            Result.success(meta)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
     override fun removerModelo() = store.removerModelo()
+
+    /** O arquivo parcial do DownloadManager — ÚNICA fonte do caminho (limpeza, destino e cópia usam a mesma). */
+    internal fun arquivoParcial(context: Context): File =
+        File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "models/$NOME_PARCIAL")
+
+    /**
+     * Fim do download: copia o parcial (armazenamento externo) para o destino PRIVADO interno e confere o
+     * SHA-256 na MESMA passada, antes de registrar metadados. É CÓPIA e não [File.renameTo] de propósito:
+     * externo (sdcard/FUSE) → interno (/data/data) são volumes diferentes e o rename SEMPRE falha no Android
+     * (bug de campo 2026-10-12: todo download terminava em "Arquivo baixado vazio ou incompleto").
+     */
+    internal fun receberBaixado(parcial: File, destino: File, esperado: ModeloInfo): ModelMetadata {
+        destino.parentFile?.mkdirs()
+        val hashReal = Sha256Streaming.copiarComHash(parcial.inputStream(), destino)
+        parcial.delete()
+        if (!destino.exists() || destino.length() < ModelStore.MINIMO_BYTES) {
+            destino.delete()
+            throw ModelVerificacaoException("Arquivo baixado vazio ou incompleto")
+        }
+        if (!hashReal.equals(esperado.sha256, ignoreCase = true)) {
+            destino.delete()
+            throw ModelVerificacaoException("SHA-256 não confere — arquivo descartado")
+        }
+        return ModelMetadata(
+            nome = esperado.nome,
+            tamanhoMb = destino.length() / 1e6f,
+            sha256 = hashReal,
+            origem = esperado.url,
+            path = destino.absolutePath,
+            downloadAtMillis = System.currentTimeMillis(),
+        )
+    }
 
     /** Polling 1×/s do DownloadManager com progresso; cancelável — remove o download do sistema. */
     private suspend fun aguardarDownload(id: Long, onProgresso: (Float) -> Unit): DownloadEstado {
@@ -128,7 +150,7 @@ class ModelManagerImpl @Inject constructor(
                 is DownloadEstado.SUCESSO -> return e
                 is DownloadEstado.FALHOU -> {
                     downloadManager.remove(id)
-                    File(context.getExternalFilesDir(null), "models/$NOME_PARCIAL").delete()
+                    arquivoParcial(context).delete()
                     return e
                 }
                 is DownloadEstado.RODANDO -> onProgresso(e.progresso)

@@ -11,7 +11,7 @@ data class Segmento(val inicioMs: Long, val fimMs: Long, val texto: String)
  * Fechar devolve a RAM do modelo; transcrever NÃO é interrompível no meio (limitação do whisper.cpp
  * síncrono) — o cancelamento cooperativo acontece nas fases de decode/preparo.
  */
-class TranscricaoWhisper(caminhoModelo: String, private val threads: Int = 0) : AutoCloseable {
+class TranscricaoWhisper(caminhoModelo: String, private val threads: Int = defaultThreads()) : AutoCloseable {
 
     private val handle: Long = WhisperJni.nativeInit(caminhoModelo)
 
@@ -33,6 +33,11 @@ class TranscricaoWhisper(caminhoModelo: String, private val threads: Int = 0) : 
     }
 
     companion object {
+        /** whisper.cpp de exemplo roda com 4 threads: hardware_concurrency (8 em big.LITTLE) só
+         *  aumenta o pico de RAM/CPU sem ganhar tempo útil — e é justamente o pico que mata app
+         *  em segundo plano no aparelho. */
+        internal fun defaultThreads(): Int = minOf(4, maxOf(1, Runtime.getRuntime().availableProcessors()))
+
         /** Parseia "t0_ms\tt1_ms\ttexto\n"... (contrato JNI). Linhas em branco são ignoradas. */
         fun parsear(saida: String): List<Segmento> = saida.lineSequence()
             .filter { it.isNotBlank() }

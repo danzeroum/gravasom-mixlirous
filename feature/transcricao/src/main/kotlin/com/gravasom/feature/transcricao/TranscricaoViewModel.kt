@@ -10,6 +10,7 @@ import com.gravasom.core.data.modelmanager.ModelMetadata
 import com.gravasom.core.data.modelmanager.ModeloInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -73,26 +74,39 @@ class TranscricaoViewModel @Inject constructor(
         modelManager.registrarConsentimento()
         trabalho = viewModelScope.launch {
             _estado.value = TranscricaoEstado.Baixando(modelo, 0)
-            val resultado = modelManager.baixarModelo(modelo) { progresso ->
-                val atual = _estado.value
-                if (atual is TranscricaoEstado.Baixando) {
-                    _estado.value = atual.copy(progresso = (progresso * 100).toInt().coerceIn(0, 100))
+            try {
+                val resultado = modelManager.baixarModelo(modelo) { progresso ->
+                    val atual = _estado.value
+                    if (atual is TranscricaoEstado.Baixando) {
+                        _estado.value = atual.copy(progresso = (progresso * 100).toInt().coerceIn(0, 100))
+                    }
                 }
+                resultado.fold(
+                    onSuccess = { meta -> _estado.value = TranscricaoEstado.Pronto(meta) },
+                    onFailure = { _estado.value = TranscricaoEstado.Erro(mensagemDe(it, "Falha no download do modelo")) },
+                )
+            } catch (e: CancellationException) {
+                throw e // cancelar volta para Pronto/Consentimento via [cancelar] — não é erro
+            } catch (e: Throwable) {
+                // Erros fora de Exception (OOM, linkage) não podem matar o processo (crash de campo 2026-10-12).
+                _estado.value = TranscricaoEstado.Erro(mensagemDe(e, "Falha no download do modelo"))
             }
-            resultado.fold(
-                onSuccess = { meta -> _estado.value = TranscricaoEstado.Pronto(meta) },
-                onFailure = { _estado.value = TranscricaoEstado.Erro(it.localizedMessage ?: "Falha no download do modelo") },
-            )
         }
     }
 
     /** Importação SAF (plano B offline): hash calculado e exibido para conferência manual. */
     fun importarModelo(uri: Uri) {
         trabalho = viewModelScope.launch {
-            modelManager.importarModelo(uri).fold(
-                onSuccess = { meta -> _estado.value = TranscricaoEstado.Pronto(meta) },
-                onFailure = { _estado.value = TranscricaoEstado.Erro(it.localizedMessage ?: "Falha na importação do modelo") },
-            )
+            try {
+                modelManager.importarModelo(uri).fold(
+                    onSuccess = { meta -> _estado.value = TranscricaoEstado.Pronto(meta) },
+                    onFailure = { _estado.value = TranscricaoEstado.Erro(mensagemDe(it, "Falha na importação do modelo")) },
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                _estado.value = TranscricaoEstado.Erro(mensagemDe(e, "Falha na importação do modelo"))
+            }
         }
     }
 
@@ -110,15 +124,15 @@ class TranscricaoViewModel @Inject constructor(
     fun salvar(recordingId: Long, titulo: String, textoEditado: String) {
         val resultado = resultadoPendente ?: return
         trabalho = viewModelScope.launch {
-            runCatching {
-                useCase.salvarAnotacao(recordingId, resultado, titulo = titulo, texto = textoEditado)
-            }.fold(
-                onSuccess = { id ->
-                    val atual = _estado.value as? TranscricaoEstado.Sucesso
-                    if (atual != null) _estado.value = atual.copy(salvoId = id)
-                },
-                onFailure = { _estado.value = TranscricaoEstado.Erro(it.localizedMessage ?: "Falha ao salvar anotação") },
-            )
+            try {
+                val id = useCase.salvarAnotacao(recordingId, resultado, titulo = titulo, texto = textoEditado)
+                val atual = _estado.value as? TranscricaoEstado.Sucesso
+                if (atual != null) _estado.value = atual.copy(salvoId = id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                _estado.value = TranscricaoEstado.Erro(mensagemDe(e, "Falha ao salvar anotação"))
+            }
         }
     }
 
@@ -161,8 +175,10 @@ class TranscricaoViewModel @Inject constructor(
             } catch (e: kotlinx.coroutines.CancellationException) {
                 _estado.value = TranscricaoEstado.Pronto(metadata)
                 throw e
-            } catch (e: Exception) {
-                _estado.value = TranscricaoEstado.Erro(e.localizedMessage ?: "Erro na transcrição")
+            } catch (e: Throwable) {
+                // Throwable de propósito: OutOfMemoryError/UnsatisfiedLinkError são Error e não eram
+                // pegos por catch(Exception) — o app fechava sem explicação (crash de campo 2026-10-12).
+                _estado.value = TranscricaoEstado.Erro(mensagemDe(e, "Erro na transcrição"))
             }
         }
     }
@@ -189,4 +205,10 @@ class TranscricaoViewModel @Inject constructor(
 
     private fun consentimentoInicial(): TranscricaoEstado.Consentimento =
         TranscricaoEstado.Consentimento(catalogo.first { it.recomendado })
+
+    /** Mensagem do Erro para a tela: OOM tem voz própria; o resto usa a mensagem do erro ou o padrão. */
+    private fun mensagemDe(e: Throwable, padrao: String): String = when {
+        e is OutOfMemoryError -> "Sem memória para concluir — feche outros apps ou escolha o modelo Tiny (menor)"
+        else -> e.localizedMessage ?: padrao
+    }
 }

@@ -51,7 +51,12 @@ class Resample16k(private val taxaOrigem: Int, private val canais: Int) {
             while (posicaoProximoAlvo < quadrosConsumidos) {
                 val fracao = (posicaoProximoAlvo - (quadrosConsumidos - 1)).coerceIn(0.0, 1.0)
                 val interpolada = quadroAnterior + (monoAtual - quadroAnterior) * fracao.toFloat()
-                val amostra = (interpolada.coerceIn(-1f, 1f) * ESCALA).toInt().coerceIn(-32768, 32767)
+                // DOMÍNIO SHORT de ponta a ponta: a entrada é PCM 16 bits cru (soma de shorts), então a
+                // saturação é nos LIMITES DO SHORT. O coerceIn(-1f,1f)*32767 antigo achava que a entrada
+                // era float normalizado — qualquer amostra não silenciosa virava ±32767 (onda quadrada):
+                // frequência contada a zero-crossing continuava certa e o teste não via, mas o whisper
+                // receberia ruído puro (achado no teste de regressão do PcmParaWhisper, 2026-10-12).
+                val amostra = interpolada.coerceIn(-32768f, 32767f).toInt().coerceIn(-32768, 32767)
                 alvo(amostra.toShort())
                 emitidas++
                 posicaoProximoAlvo += step
@@ -70,7 +75,6 @@ class Resample16k(private val taxaOrigem: Int, private val canais: Int) {
     }
 
     companion object {
-        const val ESCALA = 32767f
         private const val MAXIMA_CANais = 8
     }
 }

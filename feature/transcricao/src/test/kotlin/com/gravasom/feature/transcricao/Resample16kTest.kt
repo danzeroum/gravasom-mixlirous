@@ -92,4 +92,17 @@ class Resample16kTest {
         resampler.empurrar(origem, origem.size) { alvo.add(it) }
         assertEquals(origem.size - 1, alvo.size) // primeira amostra vira "anterior"
     }
+
+    @Test
+    fun aAmplitudeDoSenoSobreviveAoReamostrador() {
+        // Regressão 2026-10-12: a saturação antiga (coerceIn(-1f,1f)*32767) achava que a entrada era
+        // float normalizado e transformava qualquer seno em ONDA QUADRADA — frequência e contagem
+        // continuavam certas (zero-crossing) e o whisper receberia ruído. Amplitude tem que sobreviver.
+        val origem = seno(440.0, 48_000, 1.0, canais = 1) // pico 16 000
+        val resampler = Resample16k(48_000, canais = 1)
+        val alvo = ArrayList<Short>()
+        resampler.empurrar(origem, origem.size) { alvo.add(it) }
+        val pico = alvo.maxOf { abs(it.toInt()) }
+        assertTrue("pico deveria ficar perto de 16 000, foi $pico", pico in 14_000..17_000)
+    }
 }
