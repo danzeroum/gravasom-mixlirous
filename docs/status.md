@@ -579,3 +579,17 @@ A validação no aparelho (Gate 7) e as medições ADR-016 seguem o roteiro anex
 4. **`buscarWhisper` não serializável no configuration cache**: `onlyIf { }` capturava `DirectoryProperty` → substituído por `outputs.dir` + `inputs.file` (UP-TO-DATE natural) + `chmod +x` no script
 5. **Hilt**: `ModelManagerImpl` recebia `Context` cru → `@ApplicationContext`
 6. **`ModelManagerImpl`**: `NETWORK_MOBILE`/`COLUMN_PAUSED_REASON` são API errada/oculta → constantes de `DownloadManager.Request` e `STATUS_PAUSED` tratado como falha clara
+
+## Correção de campo — crash ao abrir Ajustes — sessão de 2026-10-12 (tarde)
+
+Sintoma no aparelho: Samsung "Device care" — "Gravasom Mixlirous fechou porque este app tem um bug"
+ao abrir a tela de Ajustes, e o crash REPETE em toda abertura seguinte.
+
+### Bug — `IllegalArgumentException: Cores do sistema precisam de um Context` na prévia da paleta
+- Status: ✅ Corrigido (regressão provada no host — o teste falha sem a correção e passa com ela; verificação no aparelho pendente do dono)
+- Causa raiz: `BolinhaDaPaleta` (prévia de cor dos chips em Ajustes › Aparência) chamava `esquemaDeCores(paleta, escuro)` SEM contexto. Com a paleta **"Cores do sistema"** escolhida num Android 12+, o `requireNotNull(context)` de `esquemaDeCores` (`GravasomTheme.kt`) lançava `IllegalArgumentException` durante a composição — e como a preferência já tinha sido persistida na DataStore, TODA abertura seguinte de Ajustes crashava de novo. É o único ponto de produção que chamava `esquemaDeCores` sem contexto (o tema na `MainActivity` passa `LocalContext` corretamente)
+- Correção: `BolinhaDaPaleta` passa `LocalContext.current` a `esquemaDeCores` (e como chave do `remember`); `PaletteSelectorRow` ficou `internal` para o teste (mesmo padrão do `PresetGroup`); o contrato do `requireNotNull` foi mantido — nenhum afrouxamento
+- Regressão: `PaletteSelectorRowTest` (Robolectric SDK 34, pt-rBR): compor o seletor com `sistema` selecionada sem crash + seleção por toque. Provado por stash da correção: sem ela `EXIT=1` com o mesmo `IllegalArgumentException`; com ela, `:feature:settings:testDebugUnitTest` verde (9/9 junto do `PresetGroupTest`)
+- Comando executado: `./gradlew --no-daemon :feature:settings:testDebugUnitTest` + `:app:assembleRelease` + `:app:assembleDebug` (todos `-PabiArm64Somente=true`) — **BUILD SUCCESSFUL**
+- APKs da correção (mesma chave de sempre — instalam por cima; sem modelo embutido): release **17.810.614 bytes**, SHA-256 `60c4464e373de0468921daba3b8e357f454fd1544d37eec39a781ce73e059c57`; debug **41.453.248 bytes**, SHA-256 `c981f143c3844ad082a6738703de3532a708191b8b30ecc53da47d5192c4c0d0`; `apksigner verify` OK nos dois, certificado `CN=Android Debug` SHA-256 terminado em `…9b2bd1` = o de `config/debug.keystore`
+- Falta (aparelho): instalar o release da correção, abrir Ajustes (deve abrir sem o aviso do Device care) e conferir que o seletor de Aparência renderiza as 3 paletas; se a paleta "Cores do sistema" estiver escolhida, o app segue com as cores dinâmicas

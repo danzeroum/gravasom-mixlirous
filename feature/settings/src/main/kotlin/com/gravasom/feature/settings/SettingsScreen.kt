@@ -107,7 +107,7 @@ private fun Section(title: Int) {
  * reage na hora ([GravasomApp] observa a preferência).
  */
 @Composable
-private fun PaletteSelectorRow(selecionada: String, onSelect: (String) -> Unit) {
+internal fun PaletteSelectorRow(selecionada: String, onSelect: (String) -> Unit) {
     val paletas = remember { Paleta.disponiveis() }
     Column {
         Text(stringResource(R.string.settings_aparencia_desc), style = MaterialTheme.typography.bodySmall)
@@ -131,11 +131,14 @@ private fun PaletteSelectorRow(selecionada: String, onSelect: (String) -> Unit) 
     }
 }
 
-/** Amostra da cor primária da paleta (prévia da identidade visual). */
+/** Amostra da cor primária da paleta (prévia da identidade visual). O contexto é OBRIGATÓRIO: a prévia da
+ *  paleta "Cores do sistema" resolve o esquema dinâmico (Material You, Android 12+) — sem contexto o
+ *  [esquemaDeCores] lança IllegalArgumentException e o app fechava ao abrir Ajustes (crash de campo 2026-10-12). */
 @Composable
 private fun BolinhaDaPaleta(paleta: Paleta) {
     val escuro = isSystemInDarkTheme()
-    val cor: Color = remember(paleta, escuro) { esquemaDeCores(paleta, escuro).primary }
+    val context = LocalContext.current
+    val cor: Color = remember(paleta, escuro, context) { esquemaDeCores(paleta, escuro, context).primary }
     Box(
         modifier = Modifier
             .size(14.dp)
