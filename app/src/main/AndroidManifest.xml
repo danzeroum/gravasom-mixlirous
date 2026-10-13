@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- F7/ADR-017: o DownloadManager (ÚNICA porta de rede do app) EXIGE android.permission.INTERNET
+         para aceitar enqueues — sem ela o DownloadProvider nega com SecurityException
+         "Permission Denial … requires android.permission.INTERNET" (erro de campo 2026-10-13).
+         O app em si não abre soquete nenhum: só o DownloadManager do sistema usa rede. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />

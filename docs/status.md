@@ -711,3 +711,68 @@ funcionar no aparelho com modelo ausente): o consentimento crashava ANTES do dow
       transcrever 5 min com progresso → resumo `m:ss]` editável → salvar → anotação na gravação
 - [ ] Importar modelo em modo avião; `netstat` só durante o download; medições ADR-016 (p50/p95,
       RAM, temperatura) para tiny/base/small q5_1
+
+## Correção de campo — Transcrever morria no download: faltava a permissão INTERNET + modelos embutidos no APK — sessão de 2026-10-13 (madrugada)
+
+### Diagnóstico (print do dono, 00:10)
+- A tela de transcrição mostrava: **`Permission Denial: writing com.android.providers.downloads.DownloadProvider
+  uri content://downloads/my_downloads … requires android.permission.INTERNET, or grantUriPermission()`**
+- Causa raiz: o app enfileirava o download do modelo no **DownloadManager** sem declarar
+  `<uses-permission android:name="android.permission.INTERNET"/>` no Manifest — o DownloadProvider nega
+  TODO enqueue de app sem essa permissão. Nenhum download nunca poderia funcionar (o Gate 7 §9 de download
+  nunca tinha sido exercitado no aparelho até agora).
+- Escopo ampliado pelo dono: "faça todos os testes necessários para garantir que ele funcione perfeitamente e
+  tente detectar outros bugs ocultos" + "baixe os três modelos mais leves e inclua no APK direto para facilitar
+  os testes".
+
+### Correções
+1. **`app/src/main/AndroidManifest.xml`**: `uses-permission INTERNET` adicionada (com comentário citando o erro
+   de campo). O app continua sem abrir soquete nenhum — ADR-017 (DownloadManager é a única porta de rede) intacto.
+2. **Modelos embutidos no APK** (`assets/modelos/`): os três mais leves do catálogo — `ggml-tiny-q5_1.bin`
+   (32 MB), `ggml-base-q5_1.bin` (60 MB, o recomendado) e `ggml-tiny.bin` (78 MB). `scripts/baixar-modelos-embutidos.sh`
+   baixa com SHA-256 conferido; os binários NÃO entram no git (.gitignore) — são insumo de build.
+3. **`ModelManager` +2 métodos**: `modelosEmbutidos()` (catálogo presente em assets) e `instalarEmbutido()`
+   (cópia assets → `filesDir/models` com SHA-256 na MESMA passada, cópia atômica por `.parcial`, conferência de
+   espaço livre, metadata `origem = "embutido no APK"`). Disciplina idêntica ao download (ADR-017: nada entra em
+   uso sem hash batido).
+4. **`TranscricaoViewModel`**: estado `Instalando` (progresso %), `aceitarConsentimento()` roteia embutido →
+   instalação local SEM rede / fora do catálogo embutido → download; `cancelar()` cobre `Instalando`;
+   `SecurityException` vira mensagem amigável em vez de "Permission Denial…" cru.
+5. **`TranscricaoScreen`**: consentimento mostra "JÁ VEM INCLUÍDO … nenhuma conexão de rede" para modelos embutidos,
+   sufixo "· já incluído no app" na lista, botão vira **"Instalar modelo (60 MB)"**, estado `Instalando` com barra
+   de progresso + cancelar.
+6. **Build config**: `ndkVersion = "27.2.12479018"` fixado nos conventions (build reprodutível — o AGP não baixa
+   mais o default dele por cima); `core/dsp` e `core/audio-android` agora respeitam `-PabiArm64Somente=true`
+   (mesmo contrato do core/whisper — antes compilavam 4 ABIs e o app descartava 3 no empacotamento).
+7. **versionCode 100 → 101** (`0.1.1-mixlirous`) — convenção do repo: sobe a cada entrega.
+
+### Testes (todos no critério do CI `testDebugUnitTest` — suíte completa)
+- **269 testes, 0 falhas** em todos os módulos (antes da mudança: 258).
+- Novos: `InstalarEmbutidoTest` (6 — cópia+hash, hash divergente, asset pequeno, reinstalação sobre existente,
+  lista vazia sem crash, asset ausente), `ManifestPermissionsTest` no app (2 — o manifest MESCLADO precisa
+  declarar INTERNET para sempre + RECORD_AUDIO/POST_NOTIFICATIONS intocados), ViewModel +5 (instalação sem rede,
+  roteamento fora-do-APK continua baixando, falha de instalação → Erro, SecurityException amigável, cancelamento
+  da instalação), Screen +3 (botão "Instalar modelo", instalação na tela, estado `Instalando` compõe e cancela).
+- Prova de regressão invertida: `git stash` no Manifest → `ManifestPermissionsTest` FALHA (AssertionError);
+  `stash pop` → verde. O teste morre exatamente se alguém remover a permissão de novo.
+- Observação: `FormatoManualTest` (feature/record) falhou 1× durante uma varredura feita com o disco do sandbox
+  100% cheio e passou sozinho e na varredura seguinte — flake de ordem/DataStore sob pressão, sem relação com
+  esta mudança; monitorar.
+
+### APKs desta entrega (mesma chave `…9b2bd1` — instalam por cima de TODAS as anteriores; versionCode 101)
+- release: **174.087.702 bytes** (~166 MB), SHA-256
+  `adf329649738ddefa9d1e8704afdf7040e2f0ff40ff59575941d89682aa73930`
+- debug: **198.896.496 bytes** (~190 MB), SHA-256
+  `becb2052b4e497bc436993a6f9bc2ca7f326fe2d57e4e0116a9bda983906da06`
+- Ambos: `INTERNET` no manifest mesclado (conferido com aapt), 3 modelos em `assets/modelos/` com os tamanhos
+  exatos de origem, `libgravasom_whisper.so` + `libmixlirous_mobile.so` arm64, `apksigner verify` OK.
+- Com modelo embutido, o fluxo de teste NÃO PRECISA de rede nem do DownloadManager: consentimento →
+  "Instalar modelo (60 MB)" (cópia local ~1 s) → Pronto → Transcrever.
+
+### Falta (aparelho — Gate 7 §9, agora sem depender de rede)
+- [ ] Instalar o release 0.1.1 (versionCode 101) — conferir em Ajustes do sistema a versão `0.1.1-mixlirous`
+- [ ] Tocar Transcrever → consentimento abre → "Instalar modelo (60 MB)" → Pronto → transcrever uma gravação
+      de ~5 min → resumo `m:ss]` editável → salvar → anotação aparece na gravação
+- [ ] Opcional (rota de rede agora corrigida): escolher um modelo FORA do APK (base f16 / small q5_1 / small f16)
+      → download pelo DownloadManager deve FUNCIONAR (era o bug raiz) → conferir progresso % e hash
+- [ ] Medições ADR-016 (p50/p95, RAM, temperatura) para tiny-q5_1 e base-q5_1 embutidos

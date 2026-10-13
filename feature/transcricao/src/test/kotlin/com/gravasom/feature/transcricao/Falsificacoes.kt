@@ -28,6 +28,11 @@ internal class ModeloFalso : ModelManager {
     var progressosReportados = mutableListOf<Float>()
     var consentimento = false
     var downloadsIniciados = 0
+    var embutidos: List<ModeloInfo> = emptyList()
+    var falhaNaInstalacao: Throwable? = null
+    var excecaoNaInstalacao: Throwable? = null
+    var instalacoesIniciadas = 0
+    val progressosDeInstalacao = mutableListOf<Float>()
 
     override fun hasModelo(): Boolean = modelo != null
     override fun modeloAtual(): ModelMetadata? = modelo
@@ -58,6 +63,26 @@ internal class ModeloFalso : ModelManager {
     override suspend fun importarModelo(uri: Uri): Result<ModelMetadata> =
         Result.success(modelo ?: ModelMetadata("importado.bin", 1f, "h", "importado", "/m/i.bin", null))
 
+    override fun modelosEmbutidos(): List<ModeloInfo> = embutidos
+
+    override suspend fun instalarEmbutido(modelo: ModeloInfo, onProgresso: (Float) -> Unit): Result<ModelMetadata> {
+        instalacoesIniciadas++
+        if (excecaoNaInstalacao != null) throw excecaoNaInstalacao!!
+        if (falhaNaInstalacao != null) {
+            progressosDeInstalacao.add(0.3f)
+            onProgresso(0.3f)
+            return Result.failure(falhaNaInstalacao!!)
+        }
+        progressosDeInstalacao.add(0.5f)
+        onProgresso(0.5f)
+        val meta = ModelMetadata(
+            nome = modelo.nome, tamanhoMb = modelo.tamanhoMb, sha256 = modelo.sha256,
+            origem = "embutido no APK", path = "/data/files/models/${modelo.nome}", downloadAtMillis = 1L,
+        )
+        this.modelo = meta
+        return Result.success(meta)
+    }
+
     override fun removerModelo() { modelo = null }
 }
 
@@ -65,6 +90,17 @@ internal class ModeloFalso : ModelManager {
 internal class DownloadInfinitoFalso : ModelManager by ModeloFalso() {
     override suspend fun baixarModelo(modelo: ModeloInfo, onProgresso: (Float) -> Unit): Result<ModelMetadata> {
         onProgresso(0.1f)
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            delay(50)
+        }
+    }
+}
+
+/** Instalação de modelo embutido infinita — para provar o cancelamento da instalação. */
+internal class InstalacaoInfinitaFalso(val base: ModeloFalso = ModeloFalso()) : ModelManager by base {
+    override suspend fun instalarEmbutido(modelo: ModeloInfo, onProgresso: (Float) -> Unit): Result<ModelMetadata> {
+        onProgresso(0.2f)
         while (true) {
             currentCoroutineContext().ensureActive()
             delay(50)

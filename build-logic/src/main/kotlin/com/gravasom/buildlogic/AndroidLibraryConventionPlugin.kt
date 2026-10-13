@@ -16,6 +16,8 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
 
         extensions.configure<LibraryExtension> {
             compileSdk = 36
+            // NDK FIXADO — ver comentário no AndroidApplicationConventionPlugin.
+            ndkVersion = "27.2.12479018"
             defaultConfig {
                 minSdk = 26
                 testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

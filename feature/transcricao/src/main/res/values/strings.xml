@@ -3,12 +3,17 @@
     <string name="transcricao_titulo">Transcrição</string>
     <string name="transcricao_consentimento_titulo">Modelo de transcrição</string>
     <string name="transcricao_consentimento_texto">A transcrição acontece 100%% no aparelho — seu áudio nunca sai daqui. O modelo de IA (%1$s) precisa ser baixado uma única vez: este download é a ÚNICA conexão de rede do app.</string>
+    <string name="transcricao_consentimento_texto_embutido">A transcrição acontece 100%% no aparelho — seu áudio nunca sai daqui. O modelo de IA (%1$s) JÁ VEM INCLUÍDO no aplicativo: nenhum download, nenhuma conexão de rede.</string>
     <string name="transcricao_consentimento_origem">Origem: %1$s</string>
+    <string name="transcricao_origem_embutido">embutido no APK — huggingface.co/ggerganov/whisper.cpp</string>
     <string name="transcricao_consentimento_sha">SHA-256: %1$s</string>
     <string name="transcricao_consentimento_aceitar">Baixar modelo (%1$s)</string>
+    <string name="transcricao_consentimento_aceitar_embutido">Instalar modelo (%1$s)</string>
+    <string name="transcricao_consentimento_embutido_sufixo">já incluído no app</string>
     <string name="transcricao_consentimento_importar">Importar arquivo do modelo…</string>
     <string name="transcricao_consentimento_recusar">Não agora</string>
     <string name="transcricao_baixando">Baixando modelo… %1$d%%</string>
+    <string name="transcricao_instalando">Instalando modelo… %1$d%%</string>
     <string name="transcricao_pronto">Modelo pronto: %1$s</string>
     <string name="transcricao_pronto_tamanho">SHA-256 verificado: %1$s</string>
     <string name="transcricao_timestamps">Mostrar marcas de tempo [mm:ss]</string>

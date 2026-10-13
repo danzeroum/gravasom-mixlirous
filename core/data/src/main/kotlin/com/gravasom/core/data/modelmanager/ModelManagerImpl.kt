@@ -103,6 +103,78 @@ class ModelManagerImpl @Inject constructor(
 
     override fun removerModelo() = store.removerModelo()
 
+    // ——— Modelos EMBUTIDOS no APK (assets/modelos/) — sem rede nenhuma ———
+
+    override fun modelosEmbutidos(): List<ModeloInfo> = runCatching {
+        val nomes = context.assets.list(PASTA_EMBUTIDOS)?.toSet() ?: return emptyList()
+        CatalogoModelos.modelos.filter { it.nome in nomes }
+    }.getOrDefault(emptyList())
+
+    /**
+     * Instala um modelo que já vem dentro do APK: copia assets/modelos → filesDir/models conferindo
+     * o SHA-256 na MESMA passada (mesma disciplina do download — NADA entra em uso sem hash batido).
+     * Cópia atômica por arquivo .parcial: tentativas interrompidas não deixam lixo nem modelo ruim.
+     */
+    override suspend fun instalarEmbutido(modelo: ModeloInfo, onProgresso: (Float) -> Unit): Result<ModelMetadata> =
+        withContext(Dispatchers.IO) {
+            try {
+                val destino = File(store.dirModelos, modelo.nome)
+                val parcial = File(store.dirModelos, "${modelo.nome}.parcial")
+                if (parcial.exists()) parcial.delete() // resto de instalação interrompida
+
+                val esperadoBytes = (modelo.tamanhoMb * 1_048_576f).toLong().coerceAtLeast(1L)
+                val livre = store.dirModelos.usableSpace
+                if (livre > 0 && livre < esperadoBytes + MARGEM_ESPACO_BYTES) {
+                    throw ModelVerificacaoException(
+                        "Espaço insuficiente no aparelho: o modelo precisa de ~${modelo.tamanhoMb.toInt()} MB livres",
+                    )
+                }
+
+                val entrada = abrirEmbutido(modelo.nome).buffered(Sha256Streaming.BUFFER_COPIA)
+                val hashReal = entrada.use { stream ->
+                    Sha256Streaming.copiarComHash(stream, parcial) { copiados ->
+                        onProgresso((copiados.toFloat() / esperadoBytes).coerceIn(0f, 1f))
+                    }
+                }
+
+                if (parcial.length() < ModelStore.MINIMO_BYTES) {
+                    parcial.delete()
+                    throw ModelVerificacaoException("Modelo embutido inválido (arquivo muito pequeno)")
+                }
+                if (!hashReal.equals(modelo.sha256, ignoreCase = true)) {
+                    parcial.delete()
+                    throw ModelVerificacaoException("SHA-256 do modelo embutido não confere — reinstale o aplicativo")
+                }
+                if (destino.exists()) destino.delete()
+                if (!parcial.renameTo(destino)) {
+                    // Volumes iguais (filesDir → filesDir): rename nunca deveria falhar; fallback por garantia.
+                    parcial.copyTo(destino, overwrite = true)
+                    parcial.delete()
+                }
+                val meta = ModelMetadata(
+                    nome = modelo.nome,
+                    tamanhoMb = destino.length() / 1e6f,
+                    sha256 = hashReal,
+                    origem = ORIGEM_EMBUTIDO,
+                    path = destino.absolutePath,
+                    downloadAtMillis = System.currentTimeMillis(),
+                )
+                store.salvarMetadata(meta)
+                Result.success(meta)
+            } catch (e: CancellationException) {
+                throw e // cancelar durante a cópia NÃO é erro: o ViewModel volta para o consentimento
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    /** Fonte do asset embutido — os testes trocam por fluxo próprio (Robolectric não empacota APK). */
+    private fun abrirEmbutido(nome: String): java.io.InputStream =
+        abridorDeEmbutido?.invoke(nome) ?: context.assets.open("$PASTA_EMBUTIDOS/$nome")
+
+    /** Gancho de teste; em produção é null e o asset vem do APK. */
+    internal var abridorDeEmbutido: ((String) -> java.io.InputStream)? = null
+
     /** O arquivo parcial do DownloadManager — ÚNICA fonte do caminho (limpeza, destino e cópia usam a mesma). */
     internal fun arquivoParcial(context: Context): File =
         File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "models/$NOME_PARCIAL")
@@ -227,5 +299,14 @@ class ModelManagerImpl @Inject constructor(
 
         /** Pausas transitórias do DownloadManager toleradas antes de desistir (1 s por polling). */
         const val MAXIMO_PAUSAS_SEGUIDAS = 60
+
+        /** Pasta dentro de assets/ onde os modelos embutidos no APK vivem (fornecidos no build). */
+        const val PASTA_EMBUTIDOS = "modelos"
+
+        /** Origem registrada na metadata de modelo instalado do próprio APK (sem rede). */
+        const val ORIGEM_EMBUTIDO = "embutido no APK"
+
+        /** Folga exigida além do tamanho do modelo ao conferir espaço livre (metadados + margem). */
+        const val MARGEM_ESPACO_BYTES = 64L * 1024 * 1024
     }
 }

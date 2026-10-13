@@ -3,7 +3,9 @@ package com.gravasom.feature.transcricao
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.gravasom.core.data.modelmanager.CatalogoModelos
 import com.gravasom.core.data.modelmanager.ModelMetadata
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -109,5 +111,51 @@ class TranscricaoScreenTest {
         regra.waitForIdle()
         assertTrue(viewModel.estado.value is TranscricaoEstado.Pronto)
         regra.onNodeWithTag("transcricao_iniciar").assertExists()
+    }
+
+    // ——— Modelos embutidos no APK ———
+
+    @Test
+    fun `consentimento de modelo embutido mostra Instalar sufixo já no app e texto sem download`() {
+        gerente.embutidos = listOf(CatalogoModelos.modelos.first { it.nome == "ggml-base-q5_1.bin" })
+        compor()
+        regra.onNodeWithText("Instalar modelo (60 MB)").assertExists()
+        regra.onNodeWithText("já incluído no app", substring = true).assertExists()
+        regra.onNodeWithText("JÁ VEM INCLUÍDO", substring = true).assertExists()
+        regra.onNodeWithText("nenhuma conexão de rede", substring = true).assertExists()
+    }
+
+    @Test
+    fun `aceitar modelo embutido na tela instala sem rede e chega em Pronto`() {
+        gerente.embutidos = listOf(CatalogoModelos.modelos.first { it.nome == "ggml-base-q5_1.bin" })
+        compor()
+        regra.onNodeWithTag("transcricao_aceitar").performClick()
+        regra.waitForIdle()
+        assertTrue(viewModel.estado.value is TranscricaoEstado.Pronto)
+        assertEquals(0, gerente.downloadsIniciados)
+        assertEquals(1, gerente.instalacoesIniciadas)
+        regra.onNodeWithTag("transcricao_iniciar").assertExists()
+    }
+
+    @Test
+    fun `estado Instalando compõe com progresso cancelar e volta ao consentimento`() {
+        val gerenteInfinito = InstalacaoInfinitaFalso()
+        gerenteInfinito.base.embutidos = listOf(CatalogoModelos.modelos.first { it.nome == "ggml-base-q5_1.bin" })
+        viewModel = TranscricaoViewModel(gerenteInfinito, useCase)
+        regra.setContent {
+            TranscricaoScreen(recordingId = 42L, onDone = { }, viewModel = viewModel)
+        }
+        regra.waitForIdle()
+        regra.onNodeWithTag("transcricao_aceitar").performClick()
+        regra.waitForIdle()
+        assertTrue("deveria estar Instalando; veio ${viewModel.estado.value}", viewModel.estado.value is TranscricaoEstado.Instalando)
+        regra.onNodeWithText("Instalando modelo", substring = true).assertExists()
+        regra.onNodeWithTag("transcricao_cancelar").assertExists()
+        regra.onNodeWithTag("transcricao_cancelar").performClick()
+        regra.waitForIdle()
+        assertTrue(
+            "cancelamento volta ao consentimento; veio ${viewModel.estado.value}",
+            viewModel.estado.value is TranscricaoEstado.Consentimento,
+        )
     }
 }

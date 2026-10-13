@@ -99,9 +99,18 @@ object Sha256Streaming {
     }
 
     /** Recebe um fluxo já aberto (SAF), calcula o hash e escreve em [destino] na MESMA passada. */
-    fun copiarComHash(entrada: java.io.InputStream, destino: File): String {
+    fun copiarComHash(entrada: java.io.InputStream, destino: File): String =
+        copiarComHash(entrada, destino, onBloco = null)
+
+    /**
+     * Mesma cópia com hash, com callback opcional de progresso por BYTES copiados (acumulado desde
+     * o início). Usado pela instalação de modelos embutidos no APK (sem rede) — o total conhecido
+     * vem do catálogo; aqui só reportamos o acumulado bruto.
+     */
+    fun copiarComHash(entrada: java.io.InputStream, destino: File, onBloco: ((Long) -> Unit)?): String {
         val digest = MessageDigest.getInstance("SHA-256")
-        val bloco = ByteArray(8192)
+        val bloco = ByteArray(BUFFER_COPIA)
+        var acumulado = 0L
         destino.parentFile?.mkdirs()
         destino.outputStream().use { saida ->
             while (true) {
@@ -109,8 +118,13 @@ object Sha256Streaming {
                 if (lidos <= 0) break
                 digest.update(bloco, 0, lidos)
                 saida.write(bloco, 0, lidos)
+                acumulado += lidos
+                onBloco?.invoke(acumulado)
             }
         }
         return digest.digest().joinToString("") { "%02x".format(it) }
     }
+
+    /** Bloco de cópia em disco: 256 KB (modelos de dezenas/centenas de MB — 8 KB era lento demais). */
+    internal const val BUFFER_COPIA = 256 * 1024
 }

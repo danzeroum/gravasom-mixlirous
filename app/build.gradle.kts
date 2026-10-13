@@ -116,4 +116,11 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4.accessibility)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // Teste de host do Manifest (Robolectric): guarda a permissão INTERNET — sem ela o
+    // DownloadProvider nega o enqueue do modelo (erro de campo 2026-10-13).
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.test.ext.junit)
+    testImplementation(libs.junit4)
 }

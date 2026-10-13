@@ -36,3 +36,8 @@ tests-out/
 
 # Rust (motor Mixlirous)
 rust/target/
+
+# Modelos whisper EMBUTIDOS no APK (f7): arquivos binários de 32–78 MB baixados por
+# scripts/baixar-modelos-embutidos.sh — NÃO versionar (GitHub bloqueia >100 MB e git não é CDN).
+app/src/main/assets/modelos/
+

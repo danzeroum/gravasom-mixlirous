@@ -46,6 +46,16 @@ interface ModelManager {
     /** Importa um .bin/.gguf via SAF (sem rede): calcula o SHA-256 e exibe para conferência manual. */
     suspend fun importarModelo(uri: Uri): Result<ModelMetadata>
 
+    /** Modelos do catálogo que já vêm EMBUTIDOS no APK (assets/modelos/): não precisam de download. */
+    fun modelosEmbutidos(): List<ModeloInfo>
+
+    /**
+     * Instala um modelo EMBUTIDO no APK: cópia local assets/modelos → filesDir/models com
+     * verificação de SHA-256 (mesma disciplina do download), SEM nenhuma rede. Reporta
+     * progresso 0..1 por bytes copiados.
+     */
+    suspend fun instalarEmbutido(modelo: ModeloInfo, onProgresso: (Float) -> Unit = {}): Result<ModelMetadata>
+
     /** Remove o modelo e os metadados (protocolo de medição ADR-016: forçar novo download). */
     fun removerModelo()
 }

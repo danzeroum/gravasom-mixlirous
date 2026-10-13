@@ -25,6 +25,9 @@ sealed class TranscricaoEstado {
     /** Download em curso (única conexão de rede do app). */
     data class Baixando(val modelo: ModeloInfo, val progresso: Int) : TranscricaoEstado()
 
+    /** Instalação de modelo EMBUTIDO no APK (cópia local, sem rede nenhuma). */
+    data class Instalando(val modelo: ModeloInfo, val progresso: Int) : TranscricaoEstado()
+
     /** Modelo presente e verificado: pronto para transcrever. */
     data class Pronto(val modelo: ModelMetadata) : TranscricaoEstado()
 
@@ -48,6 +51,9 @@ class TranscricaoViewModel @Inject constructor(
 ) : ViewModel() {
 
     val catalogo: List<ModeloInfo> = CatalogoModelos.modelos
+
+    /** Nomes do catálogo que já vêm dentro do APK (assets/modelos) — não precisam de download. */
+    val embutidos: Set<String> = modelManager.modelosEmbutidos().map { it.nome }.toSet()
 
     private val _estado = MutableStateFlow<TranscricaoEstado>(TranscricaoEstado.Consentimento(catalogo.first { it.recomendado }))
     val estado: StateFlow<TranscricaoEstado> = _estado.asStateFlow()
@@ -94,6 +100,37 @@ class TranscricaoViewModel @Inject constructor(
         }
     }
 
+    /** Botão do consentimento: modelo embutido → instalação local (sem rede); senão → download (ADR-017). */
+    fun aceitarConsentimento() {
+        val estado = _estado.value as? TranscricaoEstado.Consentimento ?: return
+        if (estado.modeloSelecionado.nome in embutidos) consentirEInstalar() else consentirEBaixar()
+    }
+
+    /** Instala o modelo que já vem no APK: cópia local com hash — SEM nenhuma conexão de rede. */
+    private fun consentirEInstalar() {
+        val estado = _estado.value as? TranscricaoEstado.Consentimento ?: return
+        val modelo = estado.modeloSelecionado
+        modelManager.registrarConsentimento()
+        trabalho = viewModelScope.launch {
+            _estado.value = TranscricaoEstado.Instalando(modelo, 0)
+            try {
+                modelManager.instalarEmbutido(modelo) { progresso ->
+                    val atual = _estado.value
+                    if (atual is TranscricaoEstado.Instalando) {
+                        _estado.value = atual.copy(progresso = (progresso * 100).toInt().coerceIn(0, 100))
+                    }
+                }.fold(
+                    onSuccess = { meta -> _estado.value = TranscricaoEstado.Pronto(meta) },
+                    onFailure = { _estado.value = TranscricaoEstado.Erro(mensagemDe(it, "Falha ao instalar o modelo embutido")) },
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                _estado.value = TranscricaoEstado.Erro(mensagemDe(e, "Falha ao instalar o modelo embutido"))
+            }
+        }
+    }
+
     /** Importação SAF (plano B offline): hash calculado e exibido para conferência manual. */
     fun importarModelo(uri: Uri) {
         trabalho = viewModelScope.launch {
@@ -115,7 +152,9 @@ class TranscricaoViewModel @Inject constructor(
     fun cancelar() {
         trabalho?.cancel()
         trabalho = null
-        if (_estado.value is TranscricaoEstado.Baixando || _estado.value is TranscricaoEstado.Preparando) {
+        if (_estado.value is TranscricaoEstado.Baixando || _estado.value is TranscricaoEstado.Preparando ||
+            _estado.value is TranscricaoEstado.Instalando
+        ) {
             avaliarDisponibilidade()
         }
     }
@@ -209,6 +248,10 @@ class TranscricaoViewModel @Inject constructor(
     /** Mensagem do Erro para a tela: OOM tem voz própria; o resto usa a mensagem do erro ou o padrão. */
     private fun mensagemDe(e: Throwable, padrao: String): String = when {
         e is OutOfMemoryError -> "Sem memória para concluir — feche outros apps ou escolha o modelo Tiny (menor)"
+        // Sem a permissão INTERNET o DownloadProvider nega o enqueue com essa SecurityException
+        // (erro de campo 2026-10-13); com ela restaurada no Manifest não deve ocorrer, mas se o
+        // sistema negar por qualquer motivo, a mensagem crua “Permission Denial: …” não ajuda ninguém.
+        e is SecurityException -> "Permissão de rede negada pelo sistema — reinstale o aplicativo pelo APK oficial"
         else -> e.localizedMessage ?: padrao
     }
 }

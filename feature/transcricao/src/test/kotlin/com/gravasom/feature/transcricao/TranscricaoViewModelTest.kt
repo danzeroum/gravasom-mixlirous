@@ -1,5 +1,6 @@
 package com.gravasom.feature.transcricao
 
+import com.gravasom.core.data.modelmanager.CatalogoModelos
 import com.gravasom.core.data.modelmanager.ModelMetadata
 import com.gravasom.core.data.modelmanager.ModelVerificacaoException
 import kotlinx.coroutines.Dispatchers
@@ -236,6 +237,93 @@ class TranscricaoViewModelTest {
         vm.tentarNovamente(recordingId = 42L, comTimestamps = true)
         advanceUntilIdle()
         assertTrue("esperava Sucesso após tentar novamente; veio ${vm.estado.value}", vm.estado.value is TranscricaoEstado.Sucesso)
+    }
+
+    // ——— Modelos embutidos no APK (sem rede nenhuma) ———
+
+    private fun gerenteComEmbutido(nome: String = "ggml-base-q5_1.bin") = ModeloFalso().apply {
+        embutidos = listOf(CatalogoModelos.modelos.first { it.nome == nome })
+    }
+
+    @Test
+    fun `aceitar consentimento com modelo embutido instala SEM rede e vai para Pronto`() = runTest {
+        val gerente = gerenteComEmbutido()
+        val vm = TranscricaoViewModel(gerente, UseCaseFalso(RepositorioFalso(gravacaoDeTeste()), AnotacaoFalsa()))
+        vm.avaliarDisponibilidade()
+        assertTrue(vm.estado.value is TranscricaoEstado.Consentimento)
+        vm.aceitarConsentimento()
+        advanceUntilIdle()
+        assertEquals("modelo embutido NÃO pode tocar download", 0, gerente.downloadsIniciados)
+        assertEquals(1, gerente.instalacoesIniciadas)
+        assertTrue("consentimento registrado mesmo sem rede", gerente.consentimento)
+        val estado = vm.estado.value
+        assertTrue("esperava Pronto, veio $estado", estado is TranscricaoEstado.Pronto)
+        assertEquals("embutido no APK", (estado as TranscricaoEstado.Pronto).modelo.origem)
+    }
+
+    @Test
+    fun `aceitar consentimento com modelo FORA do APK segue pelo download`() = runTest {
+        val (vm, gerente, _) = viewModel() // embutidos vazio — comportamento antigo intacto
+        vm.avaliarDisponibilidade()
+        vm.aceitarConsentimento()
+        advanceUntilIdle()
+        assertEquals(1, gerente.downloadsIniciados)
+        assertEquals(0, gerente.instalacoesIniciadas)
+        assertTrue(vm.estado.value is TranscricaoEstado.Pronto)
+    }
+
+    @Test
+    fun `falha na instalação do embutido vira Erro e NÃO derruba o processo`() = runTest {
+        val gerente = gerenteComEmbutido("ggml-tiny-q5_1.bin")
+        gerente.falhaNaInstalacao = ModelVerificacaoException("SHA-256 do modelo embutido não confere — reinstale o aplicativo")
+        val vm = TranscricaoViewModel(gerente, UseCaseFalso(RepositorioFalso(gravacaoDeTeste()), AnotacaoFalsa()))
+        vm.avaliarDisponibilidade()
+        // o recomendado (base-q5_1) NÃO é embutido aqui — selecionar o embutido à mão primeiro
+        vm.selecionarModelo(CatalogoModelos.modelos.first { it.nome == "ggml-tiny-q5_1.bin" })
+        vm.aceitarConsentimento()
+        advanceUntilIdle()
+        val estado = vm.estado.value
+        assertTrue("esperava Erro, veio $estado", estado is TranscricaoEstado.Erro)
+        assertEquals(
+            "SHA-256 do modelo embutido não confere — reinstale o aplicativo",
+            (estado as TranscricaoEstado.Erro).mensagem,
+        )
+    }
+
+    @Test
+    fun `SecurityException no download vira mensagem amigável em vez de Permission Denial crua`() = runTest {
+        val (vm, gerente, _) = viewModel()
+        gerente.falhaNoDownload = SecurityException(
+            "Permission Denial: writing com.android.providers.downloads.DownloadProvider " +
+                "uri content://downloads/my_downloads requires android.permission.INTERNET",
+        )
+        vm.avaliarDisponibilidade()
+        vm.consentirEBaixar()
+        advanceUntilIdle()
+        val estado = vm.estado.value
+        assertTrue("esperava Erro, veio $estado", estado is TranscricaoEstado.Erro)
+        val mensagem = (estado as TranscricaoEstado.Erro).mensagem
+        assertTrue(
+            "mensagem deve ser amigável, não o Permission Denial cru: $mensagem",
+            mensagem.contains("Permissão de rede negada"),
+        )
+    }
+
+    @Test
+    fun `cancelar durante a instalação do embutido volta para Consentimento em vez de Erro`() = runTest {
+        val gerente = InstalacaoInfinitaFalso()
+        gerente.base.embutidos = listOf(CatalogoModelos.modelos.first { it.nome == "ggml-base-q5_1.bin" })
+        val vm = TranscricaoViewModel(gerente, UseCaseFalso(RepositorioFalso(gravacaoDeTeste()), AnotacaoFalsa()))
+        vm.avaliarDisponibilidade()
+        vm.aceitarConsentimento()
+        advanceTimeBy(120)
+        assertTrue("deveria estar Instalando; veio ${vm.estado.value}", vm.estado.value is TranscricaoEstado.Instalando)
+        vm.cancelar()
+        advanceUntilIdle()
+        assertTrue(
+            "cancelamento NÃO é erro; veio ${vm.estado.value}",
+            vm.estado.value is TranscricaoEstado.Consentimento,
+        )
     }
 
     // ——— Remover modelo ———

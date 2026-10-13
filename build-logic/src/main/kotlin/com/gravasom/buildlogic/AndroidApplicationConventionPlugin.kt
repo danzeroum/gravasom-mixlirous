@@ -16,6 +16,9 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
 
         extensions.configure<ApplicationExtension> {
             compileSdk = 36
+            // NDK FIXADO: builds reprodutíveis em qualquer máquina (e o AGP não auto-baixa
+            // o default dele por cima — no sandbox apertado de disco eram 2 GB de duplicata).
+            ndkVersion = "27.2.12479018"
             defaultConfig {
                 minSdk = 26
                 targetSdk = 36

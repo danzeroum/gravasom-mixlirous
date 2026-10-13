@@ -17,7 +17,18 @@ val fetchRnnoise = tasks.register<Exec>("fetchRnnoise") {
 
 android {
     namespace = "com.gravasom.core.dsp"
+
+    // Mesmo contrato do core/whisper: em máquinas restritas, -PabiArm64Somente=true limita o
+    // nativo ao arm64 (o app só empacota arm64/x86_64 de qualquer jeito — os outros ABIs eram
+    // compilados à toa e depois descartados pelo filtro de empacotamento do app).
+    val abisNativas = if (providers.gradleProperty("abiArm64Somente").isPresent) {
+        listOf("arm64-v8a")
+    } else {
+        listOf("arm64-v8a", "x86_64")
+    }
+
     defaultConfig {
+        ndk { abiFilters += abisNativas }
         externalNativeBuild {
             cmake {
                 arguments += listOf("-DANDROID_STL=c++_shared", "-DRNNOISE_DIR=${rnnoiseDir.get().asFile.path}")

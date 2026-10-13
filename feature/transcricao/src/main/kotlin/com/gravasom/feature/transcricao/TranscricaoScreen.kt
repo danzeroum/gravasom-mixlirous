@@ -101,12 +101,19 @@ fun TranscricaoScreen(
                 is TranscricaoEstado.Consentimento -> ConteudoConsentimento(
                     estado = e,
                     catalogo = viewModel.catalogo,
+                    embutidos = viewModel.embutidos,
                     onSelecionar = viewModel::selecionarModelo,
-                    onAceitar = viewModel::consentirEBaixar,
+                    onAceitar = viewModel::aceitarConsentimento,
                     onImportar = { importarLauncher.launch(arrayOf("application/octet-stream", "*/*")) },
                     onRecusar = onDone,
                 )
                 is TranscricaoEstado.Baixando -> ConteudoBaixando(e, viewModel::cancelar)
+                is TranscricaoEstado.Instalando -> ConteudoOcupado(
+                    titulo = stringResource(R.string.transcricao_instalando, e.progresso),
+                    decorridoMs = null,
+                    onCancelar = viewModel::cancelar,
+                    progresso = e.progresso / 100f,
+                )
                 is TranscricaoEstado.Pronto -> ConteudoPronto(e, comTimestamps, onTimestamps = { comTimestamps = it }, onTranscrever = {
                     viewModel.iniciarTranscricao(recordingId, comTimestamps = comTimestamps)
                 })
@@ -151,11 +158,13 @@ fun TranscricaoScreen(
 private fun ConteudoConsentimento(
     estado: TranscricaoEstado.Consentimento,
     catalogo: List<ModeloInfo>,
+    embutidos: Set<String>,
     onSelecionar: (ModeloInfo) -> Unit,
     onAceitar: () -> Unit,
     onImportar: () -> Unit,
     onRecusar: () -> Unit,
 ) {
+    val modeloEmbutido = estado.modeloSelecionado.nome in embutidos
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -165,10 +174,15 @@ private fun ConteudoConsentimento(
             style = MaterialTheme.typography.titleLarge,
         )
         Text(
-            stringResource(R.string.transcricao_consentimento_texto, estado.modeloSelecionado.rotulo),
+            if (modeloEmbutido) {
+                stringResource(R.string.transcricao_consentimento_texto_embutido, estado.modeloSelecionado.rotulo)
+            } else {
+                stringResource(R.string.transcricao_consentimento_texto, estado.modeloSelecionado.rotulo)
+            },
             style = MaterialTheme.typography.bodyMedium,
         )
         catalogo.forEach { modelo ->
+            val noApp = modelo.nome in embutidos
             Row(
                 Modifier.fillMaxWidth().testTag("modelo_${modelo.nome}"),
                 verticalAlignment = Alignment.CenterVertically,
@@ -177,17 +191,36 @@ private fun ConteudoConsentimento(
                     selected = modelo.nome == estado.modeloSelecionado.nome,
                     onClick = { onSelecionar(modelo) },
                 )
-                Text(modelo.rotulo, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    if (noApp) {
+                        "${modelo.rotulo} · " + stringResource(R.string.transcricao_consentimento_embutido_sufixo)
+                    } else {
+                        modelo.rotulo
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             }
         }
-        Text(stringResource(R.string.transcricao_consentimento_origem, estado.modeloSelecionado.url), style = MaterialTheme.typography.bodySmall)
+        Text(
+            stringResource(
+                R.string.transcricao_consentimento_origem,
+                if (modeloEmbutido) stringResource(R.string.transcricao_origem_embutido) else estado.modeloSelecionado.url,
+            ),
+            style = MaterialTheme.typography.bodySmall,
+        )
         Text(
             stringResource(R.string.transcricao_consentimento_sha, estado.modeloSelecionado.sha256.take(16) + "…"),
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(4.dp))
         Button(onClick = onAceitar, modifier = Modifier.fillMaxWidth().height(48.dp).testTag("transcricao_aceitar")) {
-            Text(stringResource(R.string.transcricao_consentimento_aceitar, "${estado.modeloSelecionado.tamanhoMb.toInt()} MB"))
+            Text(
+                if (modeloEmbutido) {
+                    stringResource(R.string.transcricao_consentimento_aceitar_embutido, "${estado.modeloSelecionado.tamanhoMb.toInt()} MB")
+                } else {
+                    stringResource(R.string.transcricao_consentimento_aceitar, "${estado.modeloSelecionado.tamanhoMb.toInt()} MB")
+                },
+            )
         }
         OutlinedButton(onClick = onImportar, modifier = Modifier.fillMaxWidth().height(48.dp).testTag("transcricao_importar")) {
             Text(stringResource(R.string.transcricao_consentimento_importar))
