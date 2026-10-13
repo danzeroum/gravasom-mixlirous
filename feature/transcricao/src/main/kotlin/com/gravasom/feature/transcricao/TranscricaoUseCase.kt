@@ -28,8 +28,11 @@ enum class FaseTranscricao { PREPARANDO, TRANSCREVENDO }
  * Orquestra a transcrição local (F7): arquivo da gravação → PCM 16 kHz mono ([PcmParaWhisper]) →
  * whisper.cpp ([TranscricaoWhisper]) → resumo formatado ([ResumoFormatter]) → anotação no Room.
  * Cadeia não destrutiva (ADR-008): a gravação original é só lida — o SHA-256 fica intacto.
+ *
+ * `open` de propósito: os testes de host do ViewModel substituem transcrever/salvarAnotacao
+ * (o JNI do whisper não carrega na JVM — a inferência real só existe no aparelho).
  */
-class TranscricaoUseCase @Inject constructor(
+open class TranscricaoUseCase @Inject constructor(
     private val recordingRepository: RecordingRepository,
     private val annotationDao: AnnotationDao,
 ) {
@@ -48,6 +51,19 @@ class TranscricaoUseCase @Inject constructor(
         comTimestamps: Boolean = true,
         cancelado: () -> Boolean = { false },
         onFase: (FaseTranscricao) -> Unit = {},
+    ): TranscricaoResultado? = transcreverAberta(
+        recordingId, modeloPath, modeloNome, idioma, comTimestamps, cancelado, onFase,
+    )
+
+    /** Gancho de herança para os testes de host (mesmo comportamento — ver doc da classe). */
+    protected open suspend fun transcreverAberta(
+        recordingId: Long,
+        modeloPath: String,
+        modeloNome: String,
+        idioma: String,
+        comTimestamps: Boolean,
+        cancelado: () -> Boolean,
+        onFase: (FaseTranscricao) -> Unit,
     ): TranscricaoResultado? {
         val recording = recordingRepository.getById(recordingId)
             ?: throw GravacaoNaoEncontradaException(recordingId)
@@ -82,7 +98,7 @@ class TranscricaoUseCase @Inject constructor(
     }
 
     /** Salva a anotação com o TEXTO EDITADO na tela; devolve o id (Gate 7: edição antes de salvar). */
-    suspend fun salvarAnotacao(
+    open suspend fun salvarAnotacao(
         recordingId: Long,
         resultado: TranscricaoResultado,
         titulo: String = TITULO_PADRAO,

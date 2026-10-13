@@ -2,7 +2,7 @@
 <resources>
     <string name="transcricao_titulo">Transcrição</string>
     <string name="transcricao_consentimento_titulo">Modelo de transcrição</string>
-    <string name="transcricao_consentimento_texto">A transcrição acontece 100% no aparelho — seu áudio nunca sai daqui. O modelo de IA (%1$s) precisa ser baixado uma única vez: este download é a ÚNICA conexão de rede do app.</string>
+    <string name="transcricao_consentimento_texto">A transcrição acontece 100%% no aparelho — seu áudio nunca sai daqui. O modelo de IA (%1$s) precisa ser baixado uma única vez: este download é a ÚNICA conexão de rede do app.</string>
     <string name="transcricao_consentimento_origem">Origem: %1$s</string>
     <string name="transcricao_consentimento_sha">SHA-256: %1$s</string>
     <string name="transcricao_consentimento_aceitar">Baixar modelo (%1$s)</string>

@@ -137,6 +137,7 @@ class ModelManagerImpl @Inject constructor(
 
     /** Polling 1×/s do DownloadManager com progresso; cancelável — remove o download do sistema. */
     private suspend fun aguardarDownload(id: Long, onProgresso: (Float) -> Unit): DownloadEstado {
+        var pausasSeguidas = 0
         while (true) {
             coroutineContext.ensureActive() // cancelar durante o download interrompe e limpa abaixo
             val query = downloadManager.query(DownloadManager.Query().setFilterById(id))
@@ -153,12 +154,30 @@ class ModelManagerImpl @Inject constructor(
                     arquivoParcial(context).delete()
                     return e
                 }
-                is DownloadEstado.RODANDO -> onProgresso(e.progresso)
+                is DownloadEstado.PAUSADO -> {
+                    // O DownloadManager pausa TRANSITORIAMENTE (troca de rede, retry, fila) e retoma
+                    // sozinho — desistir na primeira pausa abortava um download que ia concluir
+                    // (aparelho, 2026-10-12). Tolerar até MAXIMO_PAUSAS_SEGUIDAS polling; só então
+                    // desistir de verdade (e limpar o parcial).
+                    pausasSeguidas++
+                    if (pausasSeguidas >= MAXIMO_PAUSAS_SEGUIDAS) {
+                        downloadManager.remove(id)
+                        arquivoParcial(context).delete()
+                        return DownloadEstado.FALHOU("download pausado por muito tempo (${e.motivo}) — verifique Wi-Fi/espaço no aparelho e tente de novo")
+                    }
+                }
+                is DownloadEstado.RODANDO -> {
+                    pausasSeguidas = 0
+                    onProgresso(e.progresso)
+                }
                 null -> {}
             }
-            delay(1000)
+            delay(intervaloDePollingMs)
         }
     }
+
+    /** Intervalo do polling — 1 s em produção; os testes encurtam (mesma tolerância em PAUSAS). */
+    internal var intervaloDePollingMs: Long = 1_000L
 
     private fun lerEstado(cursor: Cursor, id: Long): DownloadEstado {
         val colunaStatus = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
@@ -167,7 +186,11 @@ class ModelManagerImpl @Inject constructor(
             DownloadManager.STATUS_SUCCESSFUL -> DownloadEstado.SUCESSO
             DownloadManager.STATUS_FAILED -> DownloadEstado.FALHOU("STATUS_FAILED")
             DownloadManager.STATUS_PAUSED ->
-                DownloadEstado.FALHOU("download pausado — verifique Wi-Fi/espaço no aparelho")
+                DownloadEstado.PAUSADO(
+                    runCatching {
+                        cursor.getString(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
+                    }.getOrNull() ?: "motivo desconhecido",
+                )
             else -> {
                 val colunaBytes = cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
                 val colunaTotal = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
@@ -189,6 +212,7 @@ class ModelManagerImpl @Inject constructor(
     private sealed interface DownloadEstado {
         data object SUCESSO : DownloadEstado
         data class RODANDO(val progresso: Float, val id: Long) : DownloadEstado
+        data class PAUSADO(val motivo: String) : DownloadEstado
         data class FALHOU(val motivo: String) : DownloadEstado
     }
 
@@ -198,7 +222,10 @@ class ModelManagerImpl @Inject constructor(
         else -> "estado inesperado"
     }
 
-    private companion object {
+    internal companion object {
         const val NOME_PARCIAL = "whisper-modelo.download"
+
+        /** Pausas transitórias do DownloadManager toleradas antes de desistir (1 s por polling). */
+        const val MAXIMO_PAUSAS_SEGUIDAS = 60
     }
 }

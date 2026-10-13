@@ -33,6 +33,7 @@ class FormatoManualTest {
 
     private lateinit var prefs: PreferencesRepository
     private lateinit var vm: RecordViewModel
+    private lateinit var escopoDataStore: kotlinx.coroutines.CoroutineScope
 
     private class DaoZero : UsageEventDao {
         override suspend fun insert(event: UsageEventEntity): Long = 0L
@@ -45,8 +46,18 @@ class FormatoManualTest {
     @Before
     fun setUp() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        prefs = PreferencesRepository(context)
+        // DataStore ISOLADA por teste: a singleton `preferencesDataStore` é por PROCESSO e vazava
+        // estado entre testes (o resultado dependia da ordem — falha vista na suíte completa).
+        val pasta = java.nio.file.Files.createTempDirectory("formato_manual").toFile()
+        val (store, escopo) = PreferencesRepository.dataStoreDeTeste(pasta)
+        escopoDataStore = escopo
+        prefs = PreferencesRepository(context, store)
         vm = RecordViewModel(context, prefs, UsageMetrics(DaoZero(), prefs.telemetryOptIn))
+    }
+
+    @org.junit.After
+    fun soltar() {
+        PreferencesRepository.fechar(escopoDataStore)
     }
 
     @Test

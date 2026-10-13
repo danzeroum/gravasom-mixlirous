@@ -625,3 +625,89 @@ Sintoma no aparelho: ao clicar em Transcrever, "dá erro e sai do aplicativo"; D
 - Comando executado: `./gradlew --no-daemon :core:data:testDebugUnitTest :feature:transcricao:testDebugUnitTest` (51 testes, 0 falhas) + `:app:assembleRelease` + `:app:assembleDebug` — BUILD SUCCESSFUL (OOM do container exigiu `-Xmx1024m` local, não commitado como regra)
 - APKs da correção (mesma chave `…9b2bd1`, instalam por cima; sem modelo embutido): release **17.810.614 bytes**, SHA-256 `45b607211a24e634cfb462a35ff917b2f5b5805c1f80858adde19299758b453f`; debug **41.553.720 bytes**, SHA-256 `2e59e2e48bd442255449e285e1169e0537b8cd682496cae18f9dade6cba4b20f`
 - Falta (aparelho — retoma o Gate 7 §9): instalar o release novo; Transcrever → consentimento mostra tamanho/origem/SHA-256 → "Baixar modelo (60 MB)" DEVE concluir (barra de %) → Pronto → transcrever com progresso → resumo com m:ss] editável → salvar; importar em modo avião; `netstat` só durante o download
+
+## Correção de campo — Transcrever ainda dava erro: o APK da correção nunca chegou ao dono + `%` literal crashava a tela — sessão de 2026-10-13
+
+Relato do dono ("continua com erro quando clicado em transcrever"). Investigação: **o APK com as 4
+correções da noite de 2026-10-12 (commit `2a4e24b`) nunca foi entregue** — a sessão acabou antes da
+entrega (o download/ do sandbox foi encontrado vazio). Além disso, a suíte nova da tela REPRODUZIU
+um crash que a correção anterior não cobria (em nenhuma das versões a tela de transcrição chegava a
+funcionar no aparelho com modelo ausente): o consentimento crashava ANTES do download, toda vez.
+
+### Bug E — `IllegalFormatFlagsException` ao compor o consentimento (crash garantido, pré-download)
+- Status: ✅ Corrigido e provado no host (o teste novo FALHA sem a correção e passa com ela)
+- Causa raiz: `transcricao_consentimento_texto` misturava `%` LITERAL ("acontece 100% no aparelho")
+  com o argumento posicional `%1$s`. `String.format` lia `% n` como especificador com FLAG DE
+  ESPAÇO e lançava `IllegalFormatFlagsException: Flags = ' '` DURANTE a composição da
+  `TranscricaoScreen` — "dá erro e sai do aplicativo" no primeiro toque em Transcrever, antes
+  mesmo do download do modelo. É o motivo real de o relato permanecer idêntico após a rodada
+  anterior (que corrigiu o caminho do download, o catch de Throwable, o heap e o resampler —
+  correções necessárias, mas a tela nem chegava a renderizar).
+- Correção: `100%` → `100%%` (escape correto para string com argumentos). Auditoria scripted do
+  repositório INTEIRO (`scripts/auditar-percentuais.py`) — essa era a ÚNICA string com % literal +
+  argumentos posicionais (as demais, como `%1$d%%`, já escapavam corretamente).
+- Regressão: `StringsTranscricaoTest` (2) — TODA string com `%n$` formata sem exceção e o texto de
+  consentimento mostra "100%" literal sem vazar o escape. Além disso `TranscricaoScreenTest` (5)
+  monta a tela REAL nos 5 estados e clica pelo fluxo inteiro (aceitar → Pronto → transcrever →
+  Sucesso → salvar) — o teste de tela FALHAVA com o `IllegalFormatFlagsException` antes da correção.
+
+### Bug F — pausa transitória do DownloadManager abortava o download (falso "falhou")
+- Status: ✅ Corrigido
+- Causa raiz: `aguardarDownload` tratava `STATUS_PAUSED` como falha IMEDIATA e fazia
+  `downloadManager.remove(id)` — mas o DownloadManager pausa TRANSITORIAMENTE (troca de rede,
+  retry, fila) e retoma sozinho. Na rede móvel (VIVO, aparelho do dono) qualquer oscilação
+  abortava um download de 60 MB que ia concluir — "falha no download do modelo" à toa.
+- Correção: pausas consecutivas toleradas até `MAXIMO_PAUSAS_SEGUIDAS` (60 polling de 1 s) com o
+  motivo lido de `COLUMN_REASON`; só depois desiste de verdade (e limpa o parcial). O progresso
+  continua reportando 0–100% e nada foi afrouxado (verificação de SHA-256 intacta).
+- Regressão: `BaixarModeloTest` +2 com `ShadowDownloadManager`: pausa transitória → download
+  CONCLUI (hash confere); pausa persistente > tolerância → falha com mensagem clara + download
+  removido da fila + parcial apagado.
+
+### Dívida de teste achada e paga — DataStore singleton vazava estado entre testes (formato manual)
+- Status: ✅ Corrigido
+- `FormatoManualTest` só passava dependendo da ORDEM dos testes: a delegate `preferencesDataStore`
+  é um singleton POR PROCESSO e sobrevivia entre testes Robolectric (dois testes da mesma classe
+  falhavam ALTERNADAMENTE com o stash — provado em HEAD limpo antes da correção).
+- Correção: `PreferencesRepository` aceita `storeOverride` (injeção de `DataStore`, default =
+  singleton de produção, ZERO mudança de comportamento) + fábrica `dataStoreDeTeste()` (arquivo
+  temporário próprio por teste, fechada no @After). `FormatoManualTest` ficou hermético — suíte
+  completa verde 2× seguidas (`--rerun-tasks` incluído).
+
+### Testabilidade da cadeia inteira (novo `TranscricaoViewModelTest` — 14 testes)
+- Máquina de estados fechada provada no host: abrir sem modelo → Consentimento (base q5_1
+  recomendado); consentir → progresso → Pronto; falha de download → Erro com a mensagem EXATA;
+  OutOfMemoryError → Erro com mensagem própria (NÃO fecha o app); cancelamento do download →
+  Consentimento (não é erro); transcrever feliz → Preparando → Transcrevendo → Sucesso editável;
+  salvar grava a anotação com o TEXTO EDITADO e preenche salvoId; gravação inexistente → Erro
+  "Gravação 999 não encontrada"; OOM/UnsatisfiedLinkError na inferência → Erro (NÃO fecha o app);
+  cancelar preparo → Pronto; tentar novamente → reinicia; remover modelo → Consentimento.
+- `TranscricaoUseCase` ficou `open` com gancho `transcreverAberta` (o JNI do whisper não carrega
+  na JVM — a inferência real continua sendo provada só no aparelho, Gate 7/ADR-016).
+
+### Comando executado (sessão; todos BUILD SUCCESSFUL)
+- `./gradlew --no-daemon :feature:transcricao:testDebugUnitTest :core:data:testDebugUnitTest
+  :feature:record:testDebugUnitTest -PabiArm64Somente=true` → **36 + 38 + 11 testes, 0 falhas**
+- Suíte completa: `:core:{service,domain,audio-engine,audio-android,dsp,ui,whisper}` +
+  `:feature:{transcricao,settings,library,record,player,enhance,criar}` + `:app:testDebugUnitTest`
+- `./gradlew --no-daemon :app:assembleRelease :app:assembleDebug -PabiArm64Somente=true` +
+  `apksigner verify` (OK nos dois) — ambiente recriado do zero (SDK 36 + NDK 27.2 + Rust 1.99 +
+  cargo-ndk 4.1.2; JDK 21; disco do sandbox exigiu poda do NDK não arm64 — ambiente local, sem
+  impacto no repo)
+
+### APKs desta correção (mesma chave `…9b2bd1` — instalam por cima de TODAS as versões anteriores)
+- release: **17.810.618 bytes**, SHA-256 `d4d26ebc012ca3af6a070364d0a98a880793f0f06d5dd1a10777a1bdfe9a1998`
+- debug: **41.453.248 bytes**, SHA-256 `ed8fdf34238da6070b0e58e549e1d221335c408c70cb164672d840c04f1cf818`
+- `libgravasom_whisper.so` 1,57 MB (release) e `libmixlirous_mobile.so` 3,4 MB verificados DENTRO
+  dos APKs; alinhamento ELF dos LOADs = 0x4000 (**16 KB**) nos três .so maiores — compatível com
+  aparelhos Samsung com página de 16 KB (Android 15+); sem modelo de IA embutido
+- Incluem TODAS as correções: `2a4e24b` (download/Throwable/heap/resampler — nunca entregue) + esta
+
+### Falta (aparelho — retoma o Gate 7 §9)
+- [ ] Instalar o release desta sessão (o do dia 12 NÃO chegou a ser instalado — sem ele o crash E
+      continuaria)
+- [ ] Transcrever em uma gravação → consentimento ABRE sem fechar o app (texto mostra "100% no
+      aparelho") → "Baixar modelo (60 MB)" conclui com % (tolera oscilação de rede) → Pronto →
+      transcrever 5 min com progresso → resumo `m:ss]` editável → salvar → anotação na gravação
+- [ ] Importar modelo em modo avião; `netstat` só durante o download; medições ADR-016 (p50/p95,
+      RAM, temperatura) para tiny/base/small q5_1
